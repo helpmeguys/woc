@@ -105,7 +105,7 @@ if not st.session_state.authenticated:
 
 # === OPENAI SETUP ===
 from openai import OpenAI
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
 # === Ensure Embeddings File Exists ===
