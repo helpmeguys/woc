@@ -135,6 +135,33 @@ def embed_query(text: str):
     )
     return np.array(response.data[0].embedding, dtype=np.float32).reshape(1, -1)
 
+# === YOUTUBE HELPERS ===
+def extract_youtube_video_id(url):
+    """Extract YouTube video ID from a URL"""
+    if not url or "youtube.com" not in url and "youtu.be" not in url:
+        return None
+        
+    try:
+        if "youtube.com/watch" in url:
+            # Handle youtube.com/watch?v=VIDEO_ID format
+            from urllib.parse import urlparse, parse_qs
+            parsed_url = urlparse(url)
+            return parse_qs(parsed_url.query)["v"][0]
+        elif "youtu.be/" in url:
+            # Handle youtu.be/VIDEO_ID format
+            return url.split("youtu.be/")[1].split("?")[0]
+        else:
+            return None
+    except Exception:
+        return None
+        
+def get_youtube_thumbnail_url(video_id):
+    """Get the thumbnail URL for a YouTube video"""
+    if not video_id:
+        return ""
+    # Use the maxresdefault image when available (highest quality)
+    return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+
 def search_faiss(query_vector, top_k):
     scores, indices = index.search(query_vector, top_k)
     
@@ -196,19 +223,33 @@ else:
                     segment = qa.get("segment_title", "")
 
                     st.markdown("----")
-                    st.markdown(f"**Q:** {question}")
-                    st.markdown(f"**A:** {answer}")
-
+                    
+                    # Extract video ID and get thumbnail
+                    video_id = extract_youtube_video_id(url)
+                    thumbnail_url = get_youtube_thumbnail_url(video_id) if video_id else ""
+                    
+                    # Display thumbnail with link if available
+                    if thumbnail_url:
+                        st.markdown(f"<div style='text-align: center; margin-bottom: 15px;'>"
+                                  f"<a href='{url}' target='_blank'>"
+                                  f"<img src='{thumbnail_url}' style='max-width: 100%; max-height: 200px; border-radius: 8px;'>"
+                                  f"</a></div>", unsafe_allow_html=True)
+                    
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         st.markdown(f"📖 **{title}**")
                     else:
-                        st.markdown(f"📖 **{title}**")
-                    
+                        st.markdown(f"📖 **Video**")
+                        
                     # Display segment title if available
                     if segment and segment.lower().strip() not in ["", "untitled"]:
                         st.markdown(f"📝 **Segment:** {segment}")
-
-                    st.markdown(f"<a href='{url}' target='_blank'>▶️ Watch from {timestamp}</a>", unsafe_allow_html=True)
+                        
+                    st.markdown(f"⏰ **Timestamp:** {timestamp}")
+                    st.markdown(f"**Q:** {question}")
+                    st.markdown(f"**A:** {answer}")
+                    
+                    st.markdown(f"<a href='{url}' target='_blank' style='display: inline-block; margin-top: 10px; padding: 5px 15px; background-color: #FF0000; color: white; text-decoration: none; border-radius: 4px;'>"
+                              f"<span style='vertical-align: middle;'>▶️ Watch on YouTube</span></a>", unsafe_allow_html=True)
 
                     components.html(f"""
                     <div style='margin-top:4px;'>
