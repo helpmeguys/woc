@@ -144,8 +144,13 @@ def embed_query(text: str):
 
 def search_faiss(query_vector, top_k):
     scores, indices = index.search(query_vector, top_k)
-    valid_results = len(indices[0])  # how many were actually returned
-    return [(scores[0][i], metadata[indices[0][i]]) for i in range(valid_results)]
+    results = []
+    for i in range(len(indices[0])):
+        idx = indices[0][i]
+        if idx < len(metadata):
+            results.append((scores[0][i], metadata[idx]))
+    return results
+
 
 
 # === MAIN UI ===
@@ -176,9 +181,15 @@ else:
             help="Adjust how many insightful answers you'd like to see."
         )
 
-    with st.spinner("🔍 Searching by meaning..."):
-        query_vec = embed_query(query)
-        top_results = search_faiss(query_vec, top_k)
+with st.spinner("🔍 Searching by meaning..."):
+    query_vec = embed_query(query)
+    
+    # Auto-adjust top_k if metadata is smaller than the user slider
+    actual_k = min(top_k, len(metadata))
+    top_results = search_faiss(query_vec, actual_k)
+
+    if not top_results:
+        st.info("🙁 No relevant answers found. Try rewording your question.")
 
         st.success(f"Top {top_k} matches for your question:")
         for idx, (sim, qa) in enumerate(top_results):
