@@ -121,15 +121,8 @@ def load_faiss_index():
 
 @st.cache_data
 def load_metadata():
-    metadata = []
     with open(METADATA_FILE, "r", encoding="utf-8") as f:
-        for line in f:
-            try:
-                metadata.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue  # or log if needed
-    return metadata
-
+        return json.load(f)
 
 index = load_faiss_index()
 metadata = load_metadata()
@@ -144,7 +137,18 @@ def embed_query(text: str):
 
 def search_faiss(query_vector, top_k):
     scores, indices = index.search(query_vector, top_k)
-    return [(scores[0][i], metadata[indices[0][i]]) for i in range(top_k)]
+    
+    # Get actual number of results returned (may be less than top_k)
+    actual_results = min(top_k, len(indices[0]))
+    
+    # Only return valid results (where index is non-negative and within bounds)
+    results = []
+    for i in range(actual_results):
+        idx = indices[0][i]
+        if idx >= 0 and idx < len(metadata):
+            results.append((scores[0][i], metadata[idx]))
+    
+    return results
 
 # === MAIN UI ===
 st.markdown(f"<h3 style='margin-bottom: 0.5rem;'>🔎 {SITE_TITLE}</h3>", unsafe_allow_html=True)
@@ -178,43 +182,51 @@ else:
         query_vec = embed_query(query)
         top_results = search_faiss(query_vec, top_k)
 
-        st.success(f"Top {top_k} matches for your question:")
-        for idx, (sim, qa) in enumerate(top_results):
-            try:
-                question = qa.get("question", "[No question]")
-                answer = qa.get("answer", "[No answer]")
-                title = qa.get("video_title", "untitled")
-                timestamp = qa.get("timestamp", "0:00")
-                url = qa.get("video_url", "#")
+        if not top_results:
+            st.warning("⚠️ No results found for your query. Please try a different question.")
+        else:
+            st.success(f"Found {len(top_results)} matches for your question:")
+            for idx, (sim, qa) in enumerate(top_results):
+                try:
+                    question = qa.get("question", "[No question]")
+                    answer = qa.get("answer", "[No answer]")
+                    title = qa.get("video_title", "untitled")
+                    timestamp = qa.get("timestamp", "0:00")
+                    url = qa.get("video_url", "#")
+                    segment = qa.get("segment_title", "")
 
-                st.markdown("----")
-                st.markdown(f"**Q:** {question}")
-                st.markdown(f"**A:** {answer}")
+                    st.markdown("----")
+                    st.markdown(f"**Q:** {question}")
+                    st.markdown(f"**A:** {answer}")
 
-                if title.lower().strip() not in ["untitled", "untitled video", ""]:
-                    st.markdown(f"📖 **{title}**")
-                else:
-                    st.markdown(f"📖 **{title}**")
+                    if title.lower().strip() not in ["untitled", "untitled video", ""]:
+                        st.markdown(f"📖 **{title}**")
+                    else:
+                        st.markdown(f"📖 **{title}**")
+                    
+                    # Display segment title if available
+                    if segment and segment.lower().strip() not in ["", "untitled"]:
+                        st.markdown(f"📝 **Segment:** {segment}")
 
-                st.markdown(f"<a href='{url}' target='_blank'>▶️ Watch from {timestamp}</a>", unsafe_allow_html=True)
+                    st.markdown(f"<a href='{url}' target='_blank'>▶️ Watch from {timestamp}</a>", unsafe_allow_html=True)
 
-                components.html(f"""
-                <div style='margin-top:4px;'>
-                    <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='📋 Copy link', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">📋 Copy link</button>
-                </div>
-                """, height=40)
+                    components.html(f"""
+                    <div style='margin-top:4px;'>
+                        <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='📋 Copy link', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">📋 Copy link</button>
+                    </div>
+                    """, height=40)
 
-                st.markdown(
-                    f" **<span style='color:green;'>Semantic similarity: {sim:.3f}</span>**",
-                    unsafe_allow_html=True
-                )
+                    st.markdown(
+                        f" **<span style='color:green;'>Semantic similarity: {sim:.3f}</span>**",
+                        unsafe_allow_html=True
+                    )
 
-                with st.expander("🎰 Listen to this answer"):
-                    audio = generate_tts_audio(f"Question: {question}. Answer: {answer}")
-                    if audio:
-                        st.audio(audio, format="audio/mp3")
-            except Exception as e:
-                st.warning(f"⚠️ Error displaying result: {e}")
+                    with st.expander("🎰 Listen to this answer"):
+                        audio = generate_tts_audio(f"Question: {question}. Answer: {answer}")
+                        if audio:
+                            st.audio(audio, format="audio/mp3")
+                except Exception as e:
+                    st.warning(f"⚠️ Error displaying result: {e}")
 
 # === LOGOUT BUTTON ===
 st.markdown("---")
