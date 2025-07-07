@@ -1,4 +1,4 @@
-# search_app.py (FAISS + Remote Download, JSONL Ready)
+# search_app.py (FAISS + Remote Download)
 
 import streamlit as st
 import json
@@ -12,6 +12,7 @@ from gtts import gTTS
 from io import BytesIO
 import time
 import os
+import requests
 import urllib.request
 import streamlit.components.v1 as components
 
@@ -20,7 +21,7 @@ SITE_TITLE = os.environ.get("SITE_TITLE")
 PASSWORD = os.environ.get("ACCESS_PASSWORD")
 REGISTRATION_URL = os.environ.get("REGISTRATION_URL")
 INDEX_FILE = "embeddings.index"
-METADATA_FILE = "qa_embeddings.jsonl"  # .jsonl format inside
+METADATA_FILE = "metadata.json"
 INDEX_URL = os.environ.get("INDEX_URL")
 META_URL = os.environ.get("META_URL")
 ACCESS_LOG_FILE = "access_log.json"
@@ -44,12 +45,15 @@ def download_if_missing(file_path, url):
         alert_box = st.empty()
         alert_box.warning(f"📅 Downloading {file_path} from remote...")
         time.sleep(2)
-        alert_box.empty()
+        alert_box.empty()  # clears the message
+
         urllib.request.urlretrieve(url, file_path)
+
         alert_box = st.empty()
         alert_box.success(f"✅ Downloaded {file_path}")
         time.sleep(2)
         alert_box.empty()
+
 
 # === SESSION STATE INIT ===
 if "authenticated" not in st.session_state:
@@ -118,24 +122,14 @@ def load_faiss_index():
 @st.cache_data
 def load_metadata():
     metadata = []
-    valid_lines = 0
-    invalid_lines = 0
-
     with open(METADATA_FILE, "r", encoding="utf-8") as f:
-        for line_num, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
+        for line in f:
             try:
-                item = json.loads(line)
-                metadata.append(item)
-                valid_lines += 1
+                metadata.append(json.loads(line))
             except json.JSONDecodeError:
-                st.warning(f"❌ JSON decode error on line {line_num}")
-                invalid_lines += 1
-
-    st.info(f"✅ Loaded {valid_lines} entries from metadata. {invalid_lines} failed.")
+                continue  # or log if needed
     return metadata
+
 
 index = load_faiss_index()
 metadata = load_metadata()
@@ -150,12 +144,7 @@ def embed_query(text: str):
 
 def search_faiss(query_vector, top_k):
     scores, indices = index.search(query_vector, top_k)
-    results = []
-    for i in range(len(indices[0])):
-        idx = indices[0][i]
-        if idx < len(metadata):
-            results.append((scores[0][i], metadata[idx]))
-    return results
+    return [(scores[0][i], metadata[indices[0][i]]) for i in range(top_k)]
 
 # === MAIN UI ===
 st.markdown(f"<h3 style='margin-bottom: 0.5rem;'>🔎 {SITE_TITLE}</h3>", unsafe_allow_html=True)
@@ -163,62 +152,7 @@ st.markdown("Ask a question and receive an answers.")
 
 query = st.text_input("Type your question or thought:")
 
-if query:
-    with st.container():
-        top_k = st.slider(
-            label="",
-            min_value=1,
-            max_value=20,
-            value=5,
-            help="Adjust how many insightful answers you'd like to see."
-        )
-
-    with st.spinner("🔍 Searching by meaning..."):
-        query_vec = embed_query(query)
-
-        if len(metadata) == 0:
-            st.warning("⚠️ No metadata available to search. Please check your data file.")
-        else:
-            actual_k = min(top_k, len(metadata))
-            if actual_k > 0:
-                top_results = search_faiss(query_vec, actual_k)
-
-                if not top_results:
-                    st.info("🙁 No relevant answers found. Try rewording your question.")
-                else:
-                    st.success(f"Top {actual_k} matches for your question:")
-                    for idx, (sim, qa) in enumerate(top_results):
-                        try:
-                            question = qa.get("question", "[No question]")
-                            answer = qa.get("answer", "[No answer]")
-                            title = qa.get("video_title", "untitled")
-                            timestamp = qa.get("timestamp", "0:00")
-                            url = qa.get("video_url", "#")
-
-                            st.markdown("----")
-                            st.markdown(f"**Q:** {question}")
-                            st.markdown(f"**A:** {answer}")
-
-                            st.markdown(f"📖 **{title}**")
-                            st.markdown(f"<a href='{url}' target='_blank'>▶️ Watch from {timestamp}</a>", unsafe_allow_html=True)
-
-                            components.html(f"""
-                            <div style='margin-top:4px;'>
-                                <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='📋 Copy link', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">📋 Copy link</button>
-                            </div>
-                            """, height=40)
-
-                            st.markdown(f" **<span style='color:green;'>Semantic similarity: {sim:.3f}</span>**", unsafe_allow_html=True)
-
-                            with st.expander("🎰 Listen to this answer"):
-                                audio = generate_tts_audio(f"Question: {question}. Answer: {answer}")
-                                if audio:
-                                    st.audio(audio, format="audio/mp3")
-                        except Exception as e:
-                            st.warning(f"⚠️ Error displaying result: {e}")
-            else:
-                st.warning("⚠️ Not enough data available to return results.")
-else:
+if not query:
     col1, col2 = st.columns([2, 3])
     with col1:
         st.info("Enter a question to get started.")
@@ -230,6 +164,57 @@ else:
             value=5,
             help="Adjust how many insightful answers you'd like to see."
         )
+else:
+    with st.container():
+        top_k = st.slider(
+            label="",
+            min_value=1,
+            max_value=20,
+            value=5,
+            help="Adjust how many insightful answers you'd like to see."
+        )
+
+    with st.spinner("🔍 Searching by meaning..."):
+        query_vec = embed_query(query)
+        top_results = search_faiss(query_vec, top_k)
+
+        st.success(f"Top {top_k} matches for your question:")
+        for idx, (sim, qa) in enumerate(top_results):
+            try:
+                question = qa.get("question", "[No question]")
+                answer = qa.get("answer", "[No answer]")
+                title = qa.get("video_title", "untitled")
+                timestamp = qa.get("timestamp", "0:00")
+                url = qa.get("video_url", "#")
+
+                st.markdown("----")
+                st.markdown(f"**Q:** {question}")
+                st.markdown(f"**A:** {answer}")
+
+                if title.lower().strip() not in ["untitled", "untitled video", ""]:
+                    st.markdown(f"📖 **{title}**")
+                else:
+                    st.markdown(f"📖 **{title}**")
+
+                st.markdown(f"<a href='{url}' target='_blank'>▶️ Watch from {timestamp}</a>", unsafe_allow_html=True)
+
+                components.html(f"""
+                <div style='margin-top:4px;'>
+                    <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='📋 Copy link', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">📋 Copy link</button>
+                </div>
+                """, height=40)
+
+                st.markdown(
+                    f" **<span style='color:green;'>Semantic similarity: {sim:.3f}</span>**",
+                    unsafe_allow_html=True
+                )
+
+                with st.expander("🎰 Listen to this answer"):
+                    audio = generate_tts_audio(f"Question: {question}. Answer: {answer}")
+                    if audio:
+                        st.audio(audio, format="audio/mp3")
+            except Exception as e:
+                st.warning(f"⚠️ Error displaying result: {e}")
 
 # === LOGOUT BUTTON ===
 st.markdown("---")
