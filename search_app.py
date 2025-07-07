@@ -161,6 +161,37 @@ def get_youtube_thumbnail_url(video_id):
         return ""
     # Use the maxresdefault image when available (highest quality)
     return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+    
+def get_youtube_embed_html(video_id, timestamp=None):
+    """Generate HTML to embed a YouTube video with optional timestamp"""
+    if not video_id:
+        return ""
+        
+    # Convert timestamp format (e.g., "1:23:45" or "1:23") to seconds for YouTube embed
+    start_seconds = 0
+    if timestamp:
+        parts = timestamp.split(":")
+        if len(parts) == 3:  # hours:minutes:seconds
+            start_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        elif len(parts) == 2:  # minutes:seconds
+            start_seconds = int(parts[0]) * 60 + int(parts[1])
+        elif len(parts) == 1 and parts[0].isdigit():  # seconds
+            start_seconds = int(parts[0])
+            
+    # Create an embedded YouTube player with autoplay disabled and modest branding
+    # The ?start parameter specifies where to start the video in seconds
+    embed_url = f"https://www.youtube.com/embed/{video_id}?start={start_seconds}&rel=0&modestbranding=1"
+    
+    return f"""
+    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+        <iframe 
+            src="{embed_url}" 
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+            allowfullscreen 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+        </iframe>
+    </div>
+    """
 
 def search_faiss(query_vector, top_k):
     scores, indices = index.search(query_vector, top_k)
@@ -224,16 +255,13 @@ else:
 
                     st.markdown("----")
                     
-                    # Extract video ID and get thumbnail
+                    # Extract video ID for embedding
                     video_id = extract_youtube_video_id(url)
-                    thumbnail_url = get_youtube_thumbnail_url(video_id) if video_id else ""
                     
-                    # Display thumbnail with link if available
-                    if thumbnail_url:
-                        st.markdown(f"<div style='text-align: center; margin-bottom: 15px;'>"
-                                  f"<a href='{url}' target='_blank'>"
-                                  f"<img src='{thumbnail_url}' style='max-width: 100%; max-height: 200px; border-radius: 8px;'>"
-                                  f"</a></div>", unsafe_allow_html=True)
+                    # Display embedded YouTube player if video ID is available
+                    if video_id:
+                        embed_html = get_youtube_embed_html(video_id, timestamp)
+                        components.html(embed_html, height=350)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         st.markdown(f"📖 **{title}**")
@@ -247,15 +275,20 @@ else:
                     st.markdown(f"⏰ **Timestamp:** {timestamp}")
                     st.markdown(f"**Q:** {question}")
                     st.markdown(f"**A:** {answer}")
-                    
-                    st.markdown(f"<a href='{url}' target='_blank' style='display: inline-block; margin-top: 10px; padding: 5px 15px; background-color: #FF0000; color: white; text-decoration: none; border-radius: 4px;'>"
-                              f"<span style='vertical-align: middle;'>▶️ Watch on YouTube</span></a>", unsafe_allow_html=True)
 
-                    components.html(f"""
-                    <div style='margin-top:4px;'>
-                        <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='📋 Copy link', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">📋 Copy link</button>
-                    </div>
-                    """, height=40)
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        components.html(f"""
+                        <div>
+                            <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='📋 Copy link', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">📋 Copy link</button>
+                        </div>
+                        """, height=40)
+                    with col2:
+                        components.html(f"""
+                        <div>
+                            <a href="{url}" target="_blank" style="display:inline-block; padding:4px 10px; font-size:0.85rem; border:1px solid #FF0000; border-radius:5px; background:#f9f9f9; color:#FF0000; text-decoration:none;">📺 Open in YouTube</a>
+                        </div>
+                        """, height=40)
 
                     st.markdown(
                         f" **<span style='color:green;'>Semantic similarity: {sim:.3f}</span>**",
