@@ -144,7 +144,9 @@ def embed_query(text: str):
 
 def search_faiss(query_vector, top_k):
     scores, indices = index.search(query_vector, top_k)
-    return [(scores[0][i], metadata[indices[0][i]]) for i in range(top_k)]
+    valid_results = len(indices[0])  # how many were actually returned
+    return [(scores[0][i], metadata[indices[0][i]]) for i in range(valid_results)]
+
 
 # === MAIN UI ===
 st.markdown(f"<h3 style='margin-bottom: 0.5rem;'>🔎 {SITE_TITLE}</h3>", unsafe_allow_html=True)
