@@ -118,12 +118,23 @@ def load_faiss_index():
 @st.cache_data
 def load_metadata():
     metadata = []
+    valid_lines = 0
+    invalid_lines = 0
+
     with open(METADATA_FILE, "r", encoding="utf-8") as f:
-        for line in f:
-            try:
-                metadata.append(json.loads(line))
-            except json.JSONDecodeError:
+        for line_num, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
                 continue
+            try:
+                item = json.loads(line)
+                metadata.append(item)
+                valid_lines += 1
+            except json.JSONDecodeError:
+                st.warning(f"❌ JSON decode error on line {line_num}")
+                invalid_lines += 1
+
+    st.info(f"✅ Loaded {valid_lines} entries from metadata. {invalid_lines} failed.")
     return metadata
 
 index = load_faiss_index()
