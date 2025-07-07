@@ -121,8 +121,15 @@ def load_faiss_index():
 
 @st.cache_data
 def load_metadata():
+    metadata = []
     with open(METADATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+        for line in f:
+            try:
+                metadata.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue  # or log if needed
+    return metadata
+
 
 index = load_faiss_index()
 metadata = load_metadata()
