@@ -312,7 +312,7 @@ else:
                     # Display embedded YouTube player if video ID is available
                     if video_id:
                         embed_html = get_youtube_embed_html(video_id, timestamp)
-                        components.html(embed_html, height=350)
+                        components.html(embed_html, height=400)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         st.markdown(f"📖 **{title}**")
