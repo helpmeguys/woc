@@ -154,6 +154,23 @@ def extract_youtube_video_id(url):
             return None
     except Exception:
         return None
+
+def timestamp_to_seconds(timestamp):
+    """Convert timestamp format (e.g., "1:23:45" or "1:23") to seconds"""
+    if not timestamp:
+        return 0
+        
+    try:
+        parts = timestamp.split(":")
+        if len(parts) == 3:  # hours:minutes:seconds
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        elif len(parts) == 2:  # minutes:seconds
+            return int(parts[0]) * 60 + int(parts[1])
+        elif len(parts) == 1 and parts[0].isdigit():  # seconds
+            return int(parts[0])
+        return 0
+    except Exception:
+        return 0
         
 def get_youtube_thumbnail_url(video_id):
     """Get the thumbnail URL for a YouTube video"""
@@ -195,33 +212,63 @@ def get_youtube_embed_html(video_id, timestamp=None):
 
 def search_faiss(query_vector, top_k):
     # Request more results than needed to account for potential duplicates
-    expanded_k = min(top_k * 3, len(metadata))  # Request 3x but don't exceed total data size
+    expanded_k = min(top_k * 5, len(metadata))  # Request 5x but don't exceed total data size
     scores, indices = index.search(query_vector, expanded_k)
     
     # Get actual number of results returned (may be less than expanded_k)
     actual_results = min(expanded_k, len(indices[0]))
     
-    # Track unique video+timestamp combinations and keep only the highest scoring result for each
-    unique_results = {}
+    # First pass: collect all valid results
+    all_results = []
     for i in range(actual_results):
         idx = indices[0][i]
         if idx >= 0 and idx < len(metadata):
-            meta = metadata[idx]
-            # Create a unique key based on video URL and timestamp
-            video_url = meta.get("video_url", "")
-            timestamp = meta.get("timestamp", "")
-            unique_key = f"{video_url}_{timestamp}"
+            all_results.append((scores[0][i], metadata[idx]))
+    
+    # Sort all results by score (descending)
+    all_results.sort(key=lambda x: x[0], reverse=True)
+    
+    # Second pass: filter by video proximity (60 second window)
+    filtered_results = []
+    video_times = {}  # Keep track of included times by video ID
+    
+    for score, meta in all_results:
+        video_url = meta.get("video_url", "")
+        timestamp = meta.get("timestamp", "")
+        video_id = extract_youtube_video_id(video_url)
+        
+        # Skip if no video ID (shouldn't happen with properly formatted data)
+        if not video_id:
+            continue
             
-            # Only keep the highest-scoring result for each unique key
-            if unique_key not in unique_results or scores[0][i] > unique_results[unique_key][0]:
-                unique_results[unique_key] = (scores[0][i], meta)
+        # Convert timestamp to seconds for comparison
+        time_seconds = timestamp_to_seconds(timestamp)
+        
+        # Check if this video ID is already in our results
+        if video_id in video_times:
+            # Check all timestamps for this video to see if any are within 60 seconds
+            too_close = False
+            for existing_time in video_times[video_id]:
+                if abs(existing_time - time_seconds) <= 60:
+                    too_close = True
+                    break
+            
+            # Skip this result if too close to an existing result
+            if too_close:
+                continue
+        else:
+            # Initialize list for this video ID
+            video_times[video_id] = []
+        
+        # Include this result and record its timestamp
+        filtered_results.append((score, meta))
+        video_times[video_id].append(time_seconds)
+        
+        # If we have enough results, stop
+        if len(filtered_results) >= top_k:
+            break
     
-    # Convert the dictionary back to a list and sort by score (descending)
-    results = list(unique_results.values())
-    results.sort(key=lambda x: x[0], reverse=True)
-    
-    # Limit to the originally requested number of results
-    return results[:top_k]
+    return filtered_results
 
 # === MAIN UI ===
 st.markdown(f"<h3 style='margin-bottom: 0.5rem;'>🔎 {SITE_TITLE}</h3>", unsafe_allow_html=True)
