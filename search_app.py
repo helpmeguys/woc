@@ -8,8 +8,7 @@ from openai import OpenAI
 from pathlib import Path
 from datetime import datetime
 from collections import Counter
-from gtts import gTTS
-from io import BytesIO
+
 import time
 import os
 import requests
@@ -79,17 +78,7 @@ def get_monthly_usage():
         return {}
     return Counter(data)
 
-# === TEXT-TO-SPEECH ===
-def generate_tts_audio(text):
-    try:
-        tts = gTTS(text)
-        audio_fp = BytesIO()
-        tts.write_to_fp(audio_fp)
-        audio_fp.seek(0)
-        return audio_fp
-    except Exception as e:
-        st.warning(f"⚠️ TTS generation failed: {e}")
-        return None
+
 
 # === PASSWORD GATE ===
 if not st.session_state.authenticated:
@@ -356,11 +345,6 @@ else:
                         f" **<span style='color:green;'>Semantic similarity: {sim:.3f}</span>**",
                         unsafe_allow_html=True
                     )
-
-                    with st.expander("🎰 Listen to this answer"):
-                        audio = generate_tts_audio(f"Question: {question}. Answer: {answer}")
-                        if audio:
-                            st.audio(audio, format="audio/mp3")
                 except Exception as e:
                     st.warning(f"⚠️ Error displaying result: {e}")
 
