@@ -194,19 +194,34 @@ def get_youtube_embed_html(video_id, timestamp=None):
     """
 
 def search_faiss(query_vector, top_k):
-    scores, indices = index.search(query_vector, top_k)
+    # Request more results than needed to account for potential duplicates
+    expanded_k = min(top_k * 3, len(metadata))  # Request 3x but don't exceed total data size
+    scores, indices = index.search(query_vector, expanded_k)
     
-    # Get actual number of results returned (may be less than top_k)
-    actual_results = min(top_k, len(indices[0]))
+    # Get actual number of results returned (may be less than expanded_k)
+    actual_results = min(expanded_k, len(indices[0]))
     
-    # Only return valid results (where index is non-negative and within bounds)
-    results = []
+    # Track unique video+timestamp combinations and keep only the highest scoring result for each
+    unique_results = {}
     for i in range(actual_results):
         idx = indices[0][i]
         if idx >= 0 and idx < len(metadata):
-            results.append((scores[0][i], metadata[idx]))
+            meta = metadata[idx]
+            # Create a unique key based on video URL and timestamp
+            video_url = meta.get("video_url", "")
+            timestamp = meta.get("timestamp", "")
+            unique_key = f"{video_url}_{timestamp}"
+            
+            # Only keep the highest-scoring result for each unique key
+            if unique_key not in unique_results or scores[0][i] > unique_results[unique_key][0]:
+                unique_results[unique_key] = (scores[0][i], meta)
     
-    return results
+    # Convert the dictionary back to a list and sort by score (descending)
+    results = list(unique_results.values())
+    results.sort(key=lambda x: x[0], reverse=True)
+    
+    # Limit to the originally requested number of results
+    return results[:top_k]
 
 # === MAIN UI ===
 st.markdown(f"<h3 style='margin-bottom: 0.5rem;'>🔎 {SITE_TITLE}</h3>", unsafe_allow_html=True)
@@ -261,7 +276,7 @@ else:
                     # Display embedded YouTube player if video ID is available
                     if video_id:
                         embed_html = get_youtube_embed_html(video_id, timestamp)
-                        components.html(embed_html, height=400)
+                        components.html(embed_html, height=350)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         st.markdown(f"📖 **{title}**")
