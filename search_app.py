@@ -168,14 +168,17 @@ def get_youtube_thumbnail_url(video_id):
     # Use the maxresdefault image when available (highest quality)
     return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
     
-def get_youtube_embed_html(video_id, timestamp=None):
-    """Generate HTML to embed a YouTube video with optional timestamp"""
+def get_youtube_embed_html(video_id, timestamp=None, is_short=False):
+    """Generate HTML to embed a YouTube video with optional timestamp
+    
+    For YouTube Shorts, we ignore the timestamp to ensure the entire short plays.
+    """
     if not video_id:
         return ""
         
     # Convert timestamp format (e.g., "1:23:45" or "1:23") to seconds for YouTube embed
     start_seconds = 0
-    if timestamp:
+    if timestamp and not is_short:  # Skip timestamp for shorts
         parts = timestamp.split(":")
         if len(parts) == 3:  # hours:minutes:seconds
             start_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
@@ -183,10 +186,13 @@ def get_youtube_embed_html(video_id, timestamp=None):
             start_seconds = int(parts[0]) * 60 + int(parts[1])
         elif len(parts) == 1 and parts[0].isdigit():  # seconds
             start_seconds = int(parts[0])
-            
+    
     # Create an embedded YouTube player with autoplay disabled and modest branding
-    # The ?start parameter specifies where to start the video in seconds
-    embed_url = f"https://www.youtube.com/embed/{video_id}?start={start_seconds}&rel=0&modestbranding=1"
+    embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
+    
+    # Only add start time for non-shorts videos that have a timestamp
+    if not is_short and start_seconds > 0:
+        embed_url += f"&start={start_seconds}"
     
     return f"""
     <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
@@ -217,9 +223,10 @@ def search_faiss(query_vector, top_k):
     # Sort all results by score (descending)
     all_results.sort(key=lambda x: x[0], reverse=True)
     
-    # Second pass: filter by video proximity (60 second window)
+    # Second pass: filter by video proximity and handle shorts
     filtered_results = []
     video_times = {}  # Keep track of included times by video ID
+    shorts_ids = set()  # Keep track of shorts videos we've already included
     
     for score, meta in all_results:
         video_url = meta.get("video_url", "")
@@ -230,7 +237,22 @@ def search_faiss(query_vector, top_k):
         if not video_id:
             continue
             
-        # Convert timestamp to seconds for comparison
+        # Check if this is a Short based on metadata
+        is_short = meta.get("short", "") == "YES"
+        
+        # For Shorts videos, only include each unique video ID once
+        if is_short:
+            if video_id in shorts_ids:
+                continue
+            shorts_ids.add(video_id)
+            # For Shorts, we'll store the video in metadata but not use timestamp for filtering
+            filtered_results.append((score, meta))
+            # If we have enough results, stop
+            if len(filtered_results) >= top_k:
+                break
+            continue
+            
+        # For regular videos, proceed with normal timestamp-based filtering
         time_seconds = timestamp_to_seconds(timestamp)
         
         # Check if this video ID is already in our results
@@ -309,15 +331,24 @@ else:
                     # Extract video ID for embedding
                     video_id = extract_youtube_video_id(url)
                     
+                    # Check if this is a Short based on metadata
+                    is_short = qa.get("short", "") == "YES"
+                    
                     # Display embedded YouTube player if video ID is available
                     if video_id:
-                        embed_html = get_youtube_embed_html(video_id, timestamp)
-                        components.html(embed_html, height=350)
+                        embed_html = get_youtube_embed_html(video_id, timestamp, is_short)
+                        components.html(embed_html, height=400)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
-                        st.markdown(f"📖 **{title}**")
+                        if is_short:
+                            st.markdown(f"📲 **Shorts: {title}**") 
+                        else:
+                            st.markdown(f"📖 **{title}**")
                     else:
-                        st.markdown(f"📖 **Video**")
+                        if is_short:
+                            st.markdown(f"📲 **YouTube Short**")
+                        else:
+                            st.markdown(f"📖 **Video**")
                         
                     # Display segment title if available
                     if segment and segment.lower().strip() not in ["", "untitled"]:
