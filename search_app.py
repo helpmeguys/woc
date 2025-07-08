@@ -283,14 +283,12 @@ def search_faiss(query_vector, top_k):
 
 # === MAIN UI ===
 st.markdown(f"<h3 style='margin-bottom: 0.5rem;'>🔎 {SITE_TITLE}</h3>", unsafe_allow_html=True)
-st.markdown("Type a question or comment to find helpful, accurate responses.")
-
-query = st.text_input("Type your question or thought:")
+query = st.text_input("Type a question or comment to find helpful, accurate responses.")
 
 if not query:
     col1, col2 = st.columns([2, 3])
     with col1:
-        st.info("Enter a question to get started.")
+        st.info("Pick the Number of Responses.")
     with col2:
         top_k = st.slider(
             label="",
