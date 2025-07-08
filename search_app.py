@@ -359,8 +359,11 @@ else:
                     # Display segment title if available
                     if segment and segment.lower().strip() not in ["", "untitled"]:
                         st.markdown(f"📝 **Segment:** {segment}")
+                    
+                    # Only show timestamp for non-Short videos
+                    if not is_short:    
+                        st.markdown(f"⏰ **Timestamp:** {timestamp}")
                         
-                    st.markdown(f"⏰ **Timestamp:** {timestamp}")
                     st.markdown(f"**Q:** {question}")
                     st.markdown(f"**A:** {answer}")
 
