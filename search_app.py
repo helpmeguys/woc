@@ -314,7 +314,7 @@ else:
         if not top_results:
             st.warning("⚠️ No results found for your query. Please try a different question.")
         else:
-            st.success(f"Found {len(top_results)} matches for your question:")
+            st.success(f"Found {len(top_results)} matches for your query:")
             for idx, (sim, qa) in enumerate(top_results):
                 try:
                     question = qa.get("question", "[No question]")
