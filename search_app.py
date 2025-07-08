@@ -325,14 +325,20 @@ else:
                     timestamp = qa.get("timestamp", "0:00")
                     url = qa.get("video_url", "#")
                     segment = qa.get("segment_title", "")
+                    
+                    # Check if this is a Short based on metadata
+                    is_short = qa.get("short", "") == "YES"
+                    
+                    # For Shorts videos, remove timestamp from URL if present
+                    if is_short and "&t=" in url:
+                        url = url.split("&t=")[0]
+                    elif is_short and "?t=" in url:
+                        url = url.split("?t=")[0]
 
                     st.markdown("----")
                     
                     # Extract video ID for embedding
                     video_id = extract_youtube_video_id(url)
-                    
-                    # Check if this is a Short based on metadata
-                    is_short = qa.get("short", "") == "YES"
                     
                     # Display embedded YouTube player if video ID is available
                     if video_id:
@@ -360,9 +366,14 @@ else:
 
                     col1, col2 = st.columns([1, 1])
                     with col1:
+                        if is_short:
+                            button_text = "📋 Copy Shorts link"
+                        else:
+                            button_text = "📋 Copy link"
+                            
                         components.html(f"""
                         <div>
-                            <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='📋 Copy link', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">📋 Copy link</button>
+                            <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='{button_text}', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">{button_text}</button>
                         </div>
                         """, height=40)
                     with col2:
