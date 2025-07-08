@@ -283,7 +283,7 @@ def search_faiss(query_vector, top_k):
 
 # === MAIN UI ===
 st.markdown(f"<h3 style='margin-bottom: 0.5rem;'>🔎 {SITE_TITLE}</h3>", unsafe_allow_html=True)
-st.markdown("Ask a question and receive an answers.")
+st.markdown("Type a question or comment to find helpful, accurate responses.")
 
 query = st.text_input("Type your question or thought:")
 
