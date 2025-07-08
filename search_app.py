@@ -14,6 +14,9 @@ import os
 import requests
 import urllib.request
 import streamlit.components.v1 as components
+from io import BytesIO
+from PIL import Image
+import re
 
 # === CONFIGURATION ===
 SITE_TITLE = os.environ.get("SITE_TITLE")
@@ -125,6 +128,35 @@ def embed_query(text: str):
     return np.array(response.data[0].embedding, dtype=np.float32).reshape(1, -1)
 
 # === YOUTUBE HELPERS ===
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def is_youtube_short(video_id):
+    """Determine if a video is a YouTube Short based on its thumbnail dimensions and duration
+    
+    YouTube Shorts typically have:
+    1. Portrait orientation (height > width)
+    2. Duration of less than 180 seconds (3 minutes)
+    """
+    if not video_id:
+        return False
+        
+    # First check if the URL pattern contains "shorts" (fast path)
+    # This is handled elsewhere but mentioned for clarity
+    
+    # Check thumbnail dimensions
+    width, height = get_thumbnail_dimensions(video_id)
+    if width is None or height is None:
+        # If we can't get dimensions, fall back to duration only
+        is_portrait = False
+    else:
+        is_portrait = height > width
+        
+    # Check duration
+    duration = estimate_video_duration(video_id)
+    is_short_duration = duration is not None and duration <= 180
+    
+    # A video is considered a Short if it has portrait orientation AND short duration
+    return is_portrait and is_short_duration
+
 def extract_youtube_video_id(url):
     """Extract YouTube video ID from a URL"""
     if not url or "youtube.com" not in url and "youtu.be" not in url:
@@ -170,6 +202,58 @@ def get_youtube_thumbnail_url(video_id):
         return ""
     # Use the maxresdefault image when available (highest quality)
     return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def get_thumbnail_dimensions(video_id):
+    """Get the dimensions of a YouTube video thumbnail"""
+    if not video_id:
+        return None, None
+        
+    # Try to get the highest quality thumbnail first
+    thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+    try:
+        response = requests.get(thumbnail_url, stream=True, timeout=5)
+        if response.status_code != 200:
+            # Fall back to standard quality if max is not available
+            thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+            response = requests.get(thumbnail_url, stream=True, timeout=5)
+            if response.status_code != 200:
+                return None, None
+                
+        img = Image.open(BytesIO(response.content))
+        return img.width, img.height
+    except Exception as e:
+        print(f"Error getting thumbnail dimensions: {e}")
+        return None, None
+
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def estimate_video_duration(video_id):
+    """Estimate the duration of a YouTube video
+    
+    This is a basic implementation that tries to fetch video metadata from YouTube.
+    Note: For a production app, you might want to use the YouTube API instead.
+    """
+    if not video_id:
+        return None
+        
+    try:
+        # Try to get the video page and extract duration using regex
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        response = requests.get(video_url, timeout=5)
+        if response.status_code == 200:
+            # Look for the lengthSeconds pattern in the page
+            match = re.search(r'"lengthSeconds":"(\d+)"', response.text)
+            if match:
+                return int(match.group(1))
+                
+            # Alternative pattern
+            match = re.search(r'"approxDurationMs":"(\d+)"', response.text)
+            if match:
+                return int(match.group(1)) // 1000
+    except Exception as e:
+        print(f"Error estimating video duration: {e}")
+    
+    return None
     
 def get_youtube_embed_html(video_id, timestamp=None, is_shorts=False):
     """Generate HTML to embed a YouTube video with optional timestamp"""
@@ -236,8 +320,12 @@ def search_faiss(query_vector, top_k):
         if not video_id:
             continue
         
-        # Check if this is a YouTube Shorts video
+        # Check if this is a YouTube Shorts video - first check URL pattern (fast path)
         is_shorts = "youtube.com/shorts/" in video_url
+        
+        # If not detected by URL pattern, check thumbnail dimensions and duration
+        if not is_shorts and video_id:
+            is_shorts = is_youtube_short(video_id)
         
         # For Shorts videos, only include each unique video ID once
         if is_shorts:
@@ -330,8 +418,12 @@ else:
                     # Extract video ID for embedding
                     video_id = extract_youtube_video_id(url)
                     
-                    # Check if this is a YouTube Shorts video
+                    # Check if this is a YouTube Shorts video - first check URL pattern (fast path)
                     is_shorts = "youtube.com/shorts/" in url
+                    
+                    # If not detected by URL pattern, check thumbnail dimensions and duration
+                    if not is_shorts and video_id:
+                        is_shorts = is_youtube_short(video_id)
                     
                     # Display embedded YouTube player if video ID is available
                     if video_id:
@@ -339,9 +431,15 @@ else:
                         components.html(embed_html, height=400)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
-                        st.markdown(f"📖 **{title}**")
+                        if is_shorts:
+                            st.markdown(f"📲 **Shorts: {title}**")
+                        else:
+                            st.markdown(f"📖 **{title}**")
                     else:
-                        st.markdown(f"📖 **Video**")
+                        if is_shorts:
+                            st.markdown(f"📲 **YouTube Short**")
+                        else:
+                            st.markdown(f"📖 **Video**")
                         
                     # Display segment title if available
                     if segment and segment.lower().strip() not in ["", "untitled"]:
