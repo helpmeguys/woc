@@ -686,6 +686,8 @@ else:
                             height: 0;
                             overflow: hidden;
                             max-width: 100%;
+                            border-radius: var(--border-radius);
+                            margin-bottom: 12px;
                         }}
                         .video-container iframe {{
                             position: absolute;
@@ -693,6 +695,7 @@ else:
                             left: 0;
                             width: 100%;
                             height: 100%;
+                            border-radius: var(--border-radius);
                         }}
                         @media screen and (max-width: 640px) {{
                             .video-container {{
@@ -703,7 +706,7 @@ else:
                         <div class="video-container">
                             {embed_html}
                         </div>
-                        ''', height=250)
+                        ''', height=400)
                     
                     # Combine metadata into a single markdown element to reduce spacing
                     meta_elements = []
