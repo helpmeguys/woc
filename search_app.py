@@ -676,9 +676,16 @@ else:
                     
                     # Display embedded YouTube player if video ID is available
                     if video_id:
-                        # Create responsive embed with CSS for mobile devices
-                        embed_html = get_youtube_embed_html(video_id, timestamp, is_short)
-                        components.html(f'''
+                        # Process timestamp for video embedding
+                        timestamp_param = ""
+                        if timestamp and not is_short:
+                            seconds = timestamp_to_seconds(timestamp)
+                            timestamp_param = f"?start={seconds}&rel=0&modestbranding=1"
+                        else:
+                            timestamp_param = "?rel=0&modestbranding=1"
+                        
+                        # For YouTube embeds, we need to set a fixed height and make sure the HTML is properly rendered
+                        st.markdown(f'''
                         <style>
                         .video-container {{
                             position: relative;
@@ -686,7 +693,7 @@ else:
                             height: 0;
                             overflow: hidden;
                             max-width: 100%;
-                            border-radius: var(--border-radius);
+                            border-radius: {BORDER_RADIUS};
                             margin-bottom: 12px;
                         }}
                         .video-container iframe {{
@@ -695,7 +702,7 @@ else:
                             left: 0;
                             width: 100%;
                             height: 100%;
-                            border-radius: var(--border-radius);
+                            border-radius: {BORDER_RADIUS};
                         }}
                         @media screen and (max-width: 640px) {{
                             .video-container {{
@@ -703,10 +710,19 @@ else:
                             }}
                         }}
                         </style>
+                        ''', unsafe_allow_html=True)
+                        
+                        st.markdown(f'''
                         <div class="video-container">
-                            {embed_html}
+                            <iframe 
+                                src="https://www.youtube.com/embed/{video_id}{timestamp_param}" 
+                                title="YouTube video player" 
+                                frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen>
+                            </iframe>
                         </div>
-                        ''', height=400)
+                        ''', unsafe_allow_html=True)
                     
                     # Combine metadata into a single markdown element to reduce spacing
                     meta_elements = []
@@ -741,17 +757,17 @@ else:
                     col1, col2 = st.columns([1, 1])
                     with col1:
                         if is_short:
-                            button_text = "📋 Copy Shorts link"
+                            button_text = "Copy Shorts link"
                         else:
-                            button_text = "📋 Copy link"
+                            button_text = "Copy link"
                             
                         components.html(f"""
                         <div>
-                            <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='{button_text}', 2000);" 
+                            <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='📋 {button_text}', 2000);" 
                             class="copy-button" style="cursor:pointer; padding:8px 16px; font-size:0.9rem; border:1px solid rgba(0,0,0,0.1); 
                             border-radius:{BORDER_RADIUS}; background:#f9f9f9; box-shadow:{BOX_SHADOW}; transition:all 0.2s ease;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                            <span style="margin-left:4px;">{button_text}</span>
+                            <span style="margin-left:4px;">📋 {button_text}</span>
                             </button>
                         </div>
                         """, height=50)
