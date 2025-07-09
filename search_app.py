@@ -45,22 +45,20 @@ st.markdown("""
             padding-top: 1rem;
             max-width: 95%;
         }
-        /* Video container styling for responsive videos */
+        /* Make videos much larger and more prominent */
         .video-container {
-            position: relative;
-            width: 100%;
-            max-width: 720px; /* Larger max width */
-            margin: 1.5rem auto;
-            height: 405px; /* Fixed height for 16:9 ratio at 720px width */
+            width: 100%; 
+            margin: 1rem auto;
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            line-height: 0; /* Remove extra spacing */
         }
         
-        .video-container iframe {
-            width: 100%;
-            height: 100%;
-            border: 0;
+        .stVideo, .stVideo > div, .stVideo > video {
+            margin: 0 !important;
+            padding: 0 !important;
+            border-radius: 8px;
         }
         
         /* Add space between search results */
@@ -89,10 +87,9 @@ st.markdown("""
             div.stMarkdown p {
                 font-size: 0.95rem;
             }
-            /* Adjust video container for mobile */
+            /* Mobile video adjustments */
             .video-container {
-                height: 250px;
-                margin: 1rem auto;
+                margin: 0.5rem auto;
             }
         }
     </style>
@@ -388,26 +385,23 @@ else:
                         # Get the YouTube embed URL
                         embed_url = get_youtube_embed_url(video_id, timestamp, is_short)
                         
-                        # Use properly sized responsive video container
+                        # Generate full YouTube URL with timestamp if needed
                         if not is_short:
                             # For regular videos with timestamp
-                            start_time = timestamp_to_seconds(timestamp)
-                            youtube_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1&start={start_time}"
+                            if timestamp:
+                                start_time = timestamp_to_seconds(timestamp)
+                                youtube_url = f"https://www.youtube.com/watch?v={video_id}&t={start_time}s"
+                            else:
+                                youtube_url = f"https://www.youtube.com/watch?v={video_id}"
                         else:
-                            # For shorts, use regular embed without timestamp
-                            youtube_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
-                            
-                        # Use truly responsive container that leverages our CSS
-                        components.html(f"""
-                            <div class="video-container">
-                                <iframe 
-                                    src="{youtube_url}" 
-                                    frameborder="0" 
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                                    allowfullscreen>
-                                </iframe>
-                            </div>
-                        """, height=None)
+                            # For shorts
+                            youtube_url = f"https://youtube.com/shorts/{video_id}"
+                        
+                        # Use st.video which properly sizes videos to fill the width
+                        with st.container():
+                            st.markdown("<div class='video-container'>", unsafe_allow_html=True)
+                            st.video(youtube_url)
+                            st.markdown("</div>", unsafe_allow_html=True)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         if is_short:
