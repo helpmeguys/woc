@@ -169,42 +169,27 @@ def get_youtube_thumbnail_url(video_id):
     # Use the maxresdefault image when available (highest quality)
     return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
     
-def get_youtube_embed_html(video_id, timestamp=None, is_short=False):
-    """Generate HTML to embed a YouTube video with optional timestamp
+def get_youtube_embed_url(video_id, timestamp=None, is_short=False):
+    """Generate the URL for YouTube embed with optional timestamp
     
     For YouTube Shorts, we ignore the timestamp to ensure the entire short plays.
     """
     if not video_id:
         return ""
         
-    # Convert timestamp format (e.g., "1:23:45" or "1:23") to seconds for YouTube embed
+    # Convert timestamp to seconds
     start_seconds = 0
     if timestamp and not is_short:  # Skip timestamp for shorts
-        parts = timestamp.split(":")
-        if len(parts) == 3:  # hours:minutes:seconds
-            start_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
-        elif len(parts) == 2:  # minutes:seconds
-            start_seconds = int(parts[0]) * 60 + int(parts[1])
-        elif len(parts) == 1 and parts[0].isdigit():  # seconds
-            start_seconds = int(parts[0])
-    
-    # Create an embedded YouTube player with autoplay disabled and modest branding
+        start_seconds = timestamp_to_seconds(timestamp)
+        
+    # Create YouTube embed URL with modest branding
     embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
     
-    # Only add start time for non-shorts videos that have a timestamp
+    # Add timestamp for regular videos
     if not is_short and start_seconds > 0:
         embed_url += f"&start={start_seconds}"
-    
-    return f"""
-    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
-        <iframe 
-            src="{embed_url}" 
-            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
-            allowfullscreen 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
-        </iframe>
-    </div>
-    """
+        
+    return embed_url
 
 def search_faiss(query_vector, top_k):
     # Request more results than needed to account for potential duplicates
@@ -341,8 +326,12 @@ else:
                     
                     # Display embedded YouTube player if video ID is available
                     if video_id:
-                        embed_html = get_youtube_embed_html(video_id, timestamp, is_short)
-                        components.html(embed_html, height=None)
+                        # Get the YouTube embed URL
+                        embed_url = get_youtube_embed_url(video_id, timestamp, is_short)
+                        
+                        # Use st.video with the YouTube URL for better native rendering
+                        # This lets Streamlit handle the responsive sizing automatically
+                        st.video(embed_url)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         if is_short:
