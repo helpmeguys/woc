@@ -490,46 +490,33 @@ def get_youtube_embed_html(video_id, timestamp=None, is_short=False):
     
     For YouTube Shorts, we ignore the timestamp to ensure the entire short plays.
     """
+    if not video_id:
+        return ""
+    
+    # Convert timestamp to seconds if provided and not a short
+    start_seconds = 0
+    if timestamp and not is_short:
+        start_seconds = timestamp_to_seconds(timestamp)
+            
+    # Create appropriate embed URL based on video type and timestamp
     if is_short:
-        # For Shorts, use shorts URL format and never apply timestamp
-        video_url = f"https://www.youtube.com/shorts/{video_id}"
-        embed_url = f"https://www.youtube.com/embed/{video_id}"
-        # Use parameters optimized for shorts vertical format
-        embed_params = "?rel=0&modestbranding=1&playsinline=1"
-        
-        # Return HTML for shorts - just the iframe since container is in the caller
-        return f'''
-        <iframe 
-            src="{embed_url}{embed_params}" 
-            title="YouTube video player" 
-            frameborder="0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
-        </iframe>
-        '''
+        # For shorts videos
+        embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
     else:
-        # For regular videos, use standard watch URL
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        embed_url = f"https://www.youtube.com/embed/{video_id}"
-        
-        # Add timestamp parameter if available
-        if timestamp:
-            seconds = timestamp_to_seconds(timestamp)
-            video_url += f"&t={seconds}s"  # For the link
-            embed_params = f"?rel=0&modestbranding=1&playsinline=1&start={seconds}"
-        else:
-            embed_params = "?rel=0&modestbranding=1&playsinline=1"
-
-        # Return HTML for regular YouTube videos - just the iframe since container is in the caller
-        return f'''
+        # For regular videos with optional timestamp
+        embed_url = f"https://www.youtube.com/embed/{video_id}?start={start_seconds}&rel=0&modestbranding=1"
+    
+    # Return complete HTML with container and iframe
+    return f"""
+    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
         <iframe 
-            src="{embed_url}{embed_params}" 
-            title="YouTube video player" 
-            frameborder="0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            allowfullscreen>
+            src="{embed_url}" 
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+            allowfullscreen 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
         </iframe>
-        '''
+    </div>
+    """
 
 def search_faiss(query_vector, top_k):
     # Request more results than needed to account for potential duplicates
@@ -676,25 +663,10 @@ else:
                     
                     # Display embedded YouTube player if video ID is available
                     if video_id:
-                        # Create responsive embed with CSS for mobile devices
-                        if timestamp and not is_short:
-                            seconds = timestamp_to_seconds(timestamp)
-                            youtube_src = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1&start={seconds}"
-                        else:
-                            youtube_src = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
-                        
-                        # Use components.html with correct height setting for YouTube embedding
-                        components.html(f'''
-                        <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; max-width:100%; border-radius:{BORDER_RADIUS}; margin-bottom:12px;">
-                            <iframe style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius:{BORDER_RADIUS};" 
-                                src="{youtube_src}" 
-                                title="YouTube video player" 
-                                frameborder="0" 
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                allowfullscreen>
-                            </iframe>
-                        </div>
-                        ''', height=350)
+                        # Use the updated embed HTML function that returns complete HTML
+                        embed_html = get_youtube_embed_html(video_id, timestamp, is_short)
+                        # Use components.html with a fixed height to ensure proper rendering
+                        components.html(embed_html, height=300)
                     
                     # Build metadata with proper formatting and separation
                     # Title is first and always displayed
