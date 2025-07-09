@@ -266,8 +266,26 @@ st.markdown(f"""
         
         /* Hide deployment elements */
         .stDeployButton, [data-testid="stStatusWidget"], .viewerBadge_container__1QSob,
-        .stActionButtonIcon, div[class*="floating"], [data-testid="collapsedControl"] {{
+        .stActionButtonIcon, div[class*="floating"] {{
             display: none !important;
+        }}
+        
+        /* Fix sidebar toggle button to show proper icon */
+        [data-testid="collapsedControl"] {{
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }}
+        
+        /* Hide any material icon text fallback */
+        [data-testid="collapsedControl"] span {{
+            font-size: 0 !important;
+        }}
+        
+        /* Add a proper icon using CSS */
+        [data-testid="collapsedControl"]::after {{
+            content: '➡️';
+            font-size: 18px;
         }}
         
         /* Enhanced Buttons */
@@ -686,7 +704,8 @@ def search_and_display_results(query, top_k=5):
             st.exception(e)
 
 def display_youtube_search_results(results):
-    """Display YouTube search results."""
+    """Display YouTube search results with embedded videos and copy buttons."""
+    import streamlit.components.v1 as components
     try:
         if not results:
             st.info("No results found. Try a different search query.")
@@ -775,11 +794,31 @@ def display_youtube_search_results(results):
                 if timestamp and not is_short:
                     st.markdown(f"**⏰ Timestamp:** {timestamp}", unsafe_allow_html=True)
                 
-                # Video embed using Streamlit's native video component
-                try:
-                    st.video(youtube_url)
-                except Exception as e:
-                    st.error(f"Error playing video: {e}")
+                # Video embed using HTML iframe (more reliable than st.video for YouTube)
+                if video_id:
+                    if is_short:
+                        embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
+                    else:
+                        start_seconds = 0
+                        if timestamp:
+                            try:
+                                start_seconds = timestamp_to_seconds(timestamp)
+                            except ValueError:
+                                pass
+                        embed_url = f"https://www.youtube.com/embed/{video_id}?start={start_seconds}&rel=0&modestbranding=1"
+                    
+                    embed_html = f"""
+                    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+                        <iframe 
+                            src="{embed_url}" 
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+                            allowfullscreen 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                        </iframe>
+                    </div>
+                    """
+                    st.components.v1.html(embed_html, height=350)
+                else:
                     # Fallback to providing direct link
                     st.markdown(f"[Open video in YouTube]({youtube_url})")
                 
@@ -793,7 +832,7 @@ def display_youtube_search_results(results):
                 
                 # Copy link button using components HTML
                 with cols[0]:
-                    st.components.html(copy_button_html, height=50)
+                    st.components.v1.html(copy_button_html, height=50)
                 
                 # Open in YouTube button
                 with cols[1]:
