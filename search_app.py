@@ -633,48 +633,66 @@ else:
         query_vec = embed_query(query)
         top_results = search_faiss(query_vec, top_k)
 
-def search_results(query, top_k=5):
-    
-    # Function to search for documents that match the query
-    start_time = time.time()
-    results = []
-    
-    try:
-        # Get query vector
-        query_vector = get_embedding(query)
+def timestamp_to_seconds(timestamp):
+    """Convert a timestamp string (HH:MM:SS, MM:SS, or SS) to seconds."""
+    if not timestamp:
+        return 0
         
-        # Search in FAISS
-        results = search_faiss(query_vector, top_k)
+    parts = timestamp.split(":")
+    if len(parts) == 3:  # hours:minutes:seconds
+        return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+    elif len(parts) == 2:  # minutes:seconds
+        return int(parts[0]) * 60 + int(parts[1])
+    elif len(parts) == 1 and parts[0].isdigit():  # seconds
+        return int(parts[0])
+    return 0
+
+# Main search function
+def search_and_display_results(query, top_k=5):
+    """Process search query and display results"""
+    if not query.strip():
+        return
         
-        # Debug info
-        elapsed = time.time() - start_time
-        st.sidebar.info(f"⏱️ Query processed in {elapsed:.2f} seconds")
+    with st.spinner(f"""<div style='display: flex; align-items: center; gap: 8px;'>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg> Searching by meaning...
+        </div>"""):
+        try:
+            # Start timing the search process
+            start_time = time.time()
             
-    except Exception as e:
-        st.error(f"Error during search: {e}")
-        
-    # Display search results
-    if results:
-        top_results = results
-        
-        if not top_results:
-            st.warning("⚠️ No results found for your query. Please try a different question.")
-        else:
-            st.success(f"Found {len(top_results)} matches for your query:")
+            # Get query vector
+            query_vector = embed_query(query)
             
-            # Process results and display in a clean format
-            for idx, (sim, qa) in enumerate(top_results):
+            # Search in FAISS index
+            results = search_faiss(query_vector, top_k)
+            
+            # Calculate elapsed time and show in sidebar
+            elapsed = time.time() - start_time
+            st.sidebar.info(f"⏱️ Query processed in {elapsed:.2f} seconds")
+            
+            # Display results
+            if not results:
+                st.warning("⚠️ No results found for your query. Please try a different question.")
+                return
+                
+            # Show success message with count
+            st.success(f"Found {len(results)} matches for your query:")
+            
+            # Process and display each result
+            for idx, (score, item) in enumerate(results):
                 try:
                     # Extract information from the result
-                    question = qa.get("question", "[No question]")
-                    answer = qa.get("answer", "[No answer]")
-                    url = qa.get("url", "")
-                    timestamp = qa.get("timestamp", "0:00")
-                    title = qa.get("video_title", "untitled")
-                    segment = qa.get("segment", "")
+                    question = item.get("question", "[No question]")
+                    answer = item.get("answer", "[No answer]")
+                    url = item.get("url", "")
+                    timestamp = item.get("timestamp", "0:00")
+                    title = item.get("video_title", "untitled")
+                    segment = item.get("segment", "")
                     
                     # Check if this is a Short based on metadata
-                    is_short = qa.get("short", "") == "YES"
+                    is_short = item.get("short", "") == "YES"
                     
                     # For Shorts videos, remove timestamp from URL if present
                     if is_short and "&t=" in url:
@@ -700,12 +718,12 @@ def search_results(query, top_k=5):
                     # Prepare segment display
                     segment_html = ""
                     if segment and segment.lower().strip() not in ["", "untitled"]:
-                        segment_html = f"<p class='video-segment'>📝 <strong>Segment:</strong> {segment}</p>"
+                        segment_html = f"<p class='video-segment' style='margin: 8px 0;'>📝 <strong>Segment:</strong> {segment}</p>"
                     
                     # Prepare timestamp display - only for non-shorts
                     timestamp_html = ""
                     if timestamp and not is_short:
-                        timestamp_html = f"<p class='video-timestamp'>⏰ <strong>Timestamp:</strong> {timestamp}</p>"
+                        timestamp_html = f"<p class='video-timestamp' style='margin: 8px 0; color: {PRIMARY_COLOR};'>⏰ <strong>Timestamp:</strong> {timestamp}</p>"
                         
                     # Generate embed HTML if video ID exists
                     if video_id:
@@ -722,7 +740,7 @@ def search_results(query, top_k=5):
                         
                         # Generate the embed container HTML
                         video_html = f"""
-                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: {BORDER_RADIUS}; margin-bottom: 12px;">
+                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: {BORDER_RADIUS}; margin-bottom: 16px;">
                             <iframe 
                                 src="{embed_url}" 
                                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
@@ -739,8 +757,8 @@ def search_results(query, top_k=5):
                     <div class="search-result" id="result-{idx}" style="background-color: {CARD_BG_COLOR}; border-radius: {BORDER_RADIUS}; padding: 16px; margin-bottom: 24px; box-shadow: {BOX_SHADOW};">
                         {video_html}
                         
-                        <div class="metadata-container">
-                            <p class="video-title" style="margin-bottom: 8px; font-weight: 600;">
+                        <div class="metadata-container" style="margin-bottom: 12px;">
+                            <p class="video-title" style="margin-bottom: 8px; font-weight: 600; color: {HEADER_COLOR};">
                                 {"📲" if is_short else "📖"} <strong>{title_display}</strong>
                             </p>
                             {segment_html}
@@ -781,7 +799,7 @@ def search_results(query, top_k=5):
                             
                             <div style="margin-left: auto;">
                                 <span style="background-color: rgba({hex_to_rgb(PRIMARY_COLOR)[0]}, {hex_to_rgb(PRIMARY_COLOR)[1]}, {hex_to_rgb(PRIMARY_COLOR)[2]}, 0.1); padding: 4px 8px; border-radius: 20px; font-size: 0.8rem;">
-                                    <span style="color: {PRIMARY_COLOR}; font-weight: 500;">Similarity: {sim:.3f}</span>
+                                    <span style="color: {PRIMARY_COLOR}; font-weight: 500;">Similarity: {score:.3f}</span>
                                 </span>
                             </div>
                         </div>
@@ -792,9 +810,13 @@ def search_results(query, top_k=5):
                     components.html(result_html, height=500, scrolling=False)
                     
                 except Exception as e:
-                    st.warning(f"⚠️ Error displaying result: {e}")
+                    st.warning(f"⚠️ Error displaying result {idx}: {e}")
+        except Exception as e:
+            st.error(f"Error during search: {e}")
 
-search_results(query, top_k)
+# Call the new search and display function with the query
+if query:
+    search_and_display_results(query, top_k)
 
 # === LOGOUT BUTTON ===
 st.markdown("---")
