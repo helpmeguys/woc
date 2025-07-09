@@ -633,17 +633,44 @@ else:
         query_vec = embed_query(query)
         top_results = search_faiss(query_vec, top_k)
 
+def search_results(query, top_k=5):
+    
+    # Function to search for documents that match the query
+    start_time = time.time()
+    results = []
+    
+    try:
+        # Get query vector
+        query_vector = get_embedding(query)
+        
+        # Search in FAISS
+        results = search_faiss(query_vector, top_k)
+        
+        # Debug info
+        elapsed = time.time() - start_time
+        st.sidebar.info(f"⏱️ Query processed in {elapsed:.2f} seconds")
+            
+    except Exception as e:
+        st.error(f"Error during search: {e}")
+        
+    # Display search results
+    if results:
+        top_results = results
+        
         if not top_results:
             st.warning("⚠️ No results found for your query. Please try a different question.")
         else:
             st.success(f"Found {len(top_results)} matches for your query:")
+            
+            # Process results and display in a clean format
             for idx, (sim, qa) in enumerate(top_results):
                 try:
+                    # Extract information from the result
                     question = qa.get("question", "[No question]")
                     answer = qa.get("answer", "[No answer]")
-                    title = qa.get("video_title", "untitled")
                     url = qa.get("url", "")
                     timestamp = qa.get("timestamp", "0:00")
+                    title = qa.get("video_title", "untitled")
                     segment = qa.get("segment", "")
                     
                     # Check if this is a Short based on metadata
@@ -654,100 +681,120 @@ else:
                         url = url.split("&t=")[0]
                     elif is_short and "?t=" in url:
                         url = url.split("?t=")[0]
-
-                    # Start search result card
-                    st.markdown(f"""<div class="search-result" id="result-{idx}">""")
                     
                     # Extract video ID for embedding
                     video_id = extract_youtube_video_id(url)
                     
-                    # Display embedded YouTube player if video ID is available
-                    if video_id:
-                        # Use the updated embed HTML function that returns complete HTML
-                        embed_html = get_youtube_embed_html(video_id, timestamp, is_short)
-                        # Use components.html with a fixed height to ensure proper rendering
-                        components.html(embed_html, height=300)
-                    
-                    # Build metadata with proper formatting and separation
-                    # Title is first and always displayed
+                    # Prepare title display
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         if is_short:
-                            title_html = f"<p class='video-title'>📲 <strong>Shorts: {title}</strong></p>"
+                            title_display = f"Shorts: {title}"
                         else:
-                            title_html = f"<p class='video-title'>📖 <strong>{title}</strong></p>"
+                            title_display = title
                     else:
                         if is_short:
-                            title_html = f"<p class='video-title'>📲 <strong>YouTube Short</strong></p>"
+                            title_display = "YouTube Short"
                         else:
-                            title_html = f"<p class='video-title'>📖 <strong>Video</strong></p>"
+                            title_display = "Video"
                     
-                    # Build additional metadata with separate paragraphs
-                    additional_meta = []
-                    
-                    # Add segment title if available
+                    # Prepare segment display
+                    segment_html = ""
                     if segment and segment.lower().strip() not in ["", "untitled"]:
-                        additional_meta.append(f"<p class='video-segment'>📝 <strong>Segment:</strong> {segment}</p>")
+                        segment_html = f"<p class='video-segment'>📝 <strong>Segment:</strong> {segment}</p>"
                     
-                    # Only show timestamp for non-Short videos - on its own line
-                    if not is_short:    
-                        additional_meta.append(f"<p class='video-timestamp'>⏰ <strong>Timestamp:</strong> {timestamp}</p>")
-                    
-                    # Render metadata with proper line breaks
-                    st.markdown(
-                        f"""<div class='metadata-container'>
-                            {title_html}
-                            {''.join(additional_meta)}
-                        </div>""", 
-                        unsafe_allow_html=True
-                    )
-                    
-                    # Display QA content with compact spacing
-                    st.markdown(f"<div class='qa-content'><p><strong>Q:</strong> {question}</p><p><strong>A:</strong> {answer}</p></div>", unsafe_allow_html=True)
-
-                    # Create button container with flexbox for better layout
-                    st.markdown('<div class="button-container" style="display:flex; gap:10px; margin-top:10px;">', unsafe_allow_html=True)
-                    col1, col2 = st.columns([1, 1])
-                    with col1:
+                    # Prepare timestamp display - only for non-shorts
+                    timestamp_html = ""
+                    if timestamp and not is_short:
+                        timestamp_html = f"<p class='video-timestamp'>⏰ <strong>Timestamp:</strong> {timestamp}</p>"
+                        
+                    # Generate embed HTML if video ID exists
+                    if video_id:
+                        # Convert timestamp to seconds for embed URL
+                        start_seconds = 0
+                        if timestamp and not is_short:
+                            start_seconds = timestamp_to_seconds(timestamp)
+                                
+                        # Create embed URL with appropriate parameters
                         if is_short:
-                            button_text = "Copy Shorts link"
+                            embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
                         else:
-                            button_text = "Copy link"
-                            
-                        components.html(f"""
-                        <div>
-                            <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText=' {button_text}', 2000);" 
-                            class="copy-button" style="cursor:pointer; padding:8px 16px; font-size:0.9rem; border:1px solid rgba(0,0,0,0.1); 
-                            border-radius:{BORDER_RADIUS}; background:#f9f9f9; box-shadow:{BOX_SHADOW}; transition:all 0.2s ease;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                            <span style="margin-left:4px;"> {button_text}</span>
+                            embed_url = f"https://www.youtube.com/embed/{video_id}?start={start_seconds}&rel=0&modestbranding=1"
+                        
+                        # Generate the embed container HTML
+                        video_html = f"""
+                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: {BORDER_RADIUS}; margin-bottom: 12px;">
+                            <iframe 
+                                src="{embed_url}" 
+                                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+                                allowfullscreen 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                            </iframe>
+                        </div>
+                        """
+                    else:
+                        video_html = ""
+                        
+                    # Generate complete result card HTML with all components
+                    result_html = f"""
+                    <div class="search-result" id="result-{idx}" style="background-color: {CARD_BG_COLOR}; border-radius: {BORDER_RADIUS}; padding: 16px; margin-bottom: 24px; box-shadow: {BOX_SHADOW};">
+                        {video_html}
+                        
+                        <div class="metadata-container">
+                            <p class="video-title" style="margin-bottom: 8px; font-weight: 600;">
+                                {"📲" if is_short else "📖"} <strong>{title_display}</strong>
+                            </p>
+                            {segment_html}
+                            {timestamp_html}
+                        </div>
+                        
+                        <div class="qa-content" style="margin: 12px 0; background-color: rgba(0,0,0,0.02); padding: 12px; border-radius: {BORDER_RADIUS};">
+                            <p style="margin-bottom: 8px;"><strong>Q:</strong> {question}</p>
+                            <p><strong>A:</strong> {answer}</p>
+                        </div>
+                        
+                        <div class="button-container" style="display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+                            <button onclick="
+                                navigator.clipboard.writeText('{url}');
+                                this.innerHTML = '<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'14\\' height=\\'14\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><path d=\\'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\\'></path><rect x=\\'8\\' y=\\'2\\' width=\\'8\\' height=\\'4\\' rx=\\'1\\' ry=\\'1\\'></rect></svg> <span style=\\'margin-left:4px;\\'>Copied!</span>';
+                                setTimeout(() => {{
+                                    this.innerHTML = '<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'14\\' height=\\'14\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><path d=\\'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\\'></path><rect x=\\'8\\' y=\\'2\\' width=\\'8\\' height=\\'4\\' rx=\\'1\\' ry=\\'1\\'></rect></svg> <span style=\\'margin-left:4px;\\'>{'Copy Shorts link' if is_short else 'Copy link'}</span>';
+                                }}, 2000);
+                                " 
+                                class="copy-button" 
+                                style="cursor: pointer; padding: 8px 16px; font-size: 0.9rem; border: 1px solid rgba(0,0,0,0.15); 
+                                border-radius: {BORDER_RADIUS}; background: #ffffff; box-shadow: {BOX_SHADOW}; transition: all 0.2s ease;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                </svg>
+                                <span style="margin-left: 4px;">{"Copy Shorts link" if is_short else "Copy link"}</span>
                             </button>
-                        </div>
-                        """, height=50)
-                    with col2:
-                        components.html(f"""
-                        <div>
+                            
                             <a href="{url}" target="_blank" class="youtube-button" 
-                            style="display:inline-block; padding:8px 16px; font-size:0.9rem; border:1px solid rgba(255,0,0,0.7); 
-                            border-radius:{BORDER_RADIUS}; background:#ffffff; color:#FF0000; text-decoration:none; box-shadow:{BOX_SHADOW}; transition:all 0.2s ease;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#FF0000"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
-                            <span style="margin-left:4px;">Open in YouTube</span>
+                                style="display: inline-block; padding: 8px 16px; font-size: 0.9rem; border: 1px solid rgba(255,0,0,0.7); 
+                                border-radius: {BORDER_RADIUS}; background: #ffffff; color: #FF0000; text-decoration: none; box-shadow: {BOX_SHADOW}; transition: all 0.2s ease;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#FF0000">
+                                    <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                                </svg>
+                                <span style="margin-left: 4px;">Open in YouTube</span>
                             </a>
+                            
+                            <div style="margin-left: auto;">
+                                <span style="background-color: rgba({hex_to_rgb(PRIMARY_COLOR)[0]}, {hex_to_rgb(PRIMARY_COLOR)[1]}, {hex_to_rgb(PRIMARY_COLOR)[2]}, 0.1); padding: 4px 8px; border-radius: 20px; font-size: 0.8rem;">
+                                    <span style="color: {PRIMARY_COLOR}; font-weight: 500;">Similarity: {sim:.3f}</span>
+                                </span>
+                            </div>
                         </div>
-                        """, height=50)
-
-                    rgb = hex_to_rgb(PRIMARY_COLOR)
-                    st.markdown(
-                        f"<div class='similarity-score'><span style='background-color: rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, 0.1); padding: 4px 8px; border-radius: 20px; font-size: 0.8rem;'><span style='color: var(--primary-color); font-weight: 500;'>Similarity: {sim:.3f}</span></span></div>",
-                        unsafe_allow_html=True
-                    )
+                    </div>
+                    """
                     
-                    # Close button container div
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    # Render the entire result card using components.html
+                    components.html(result_html, height=500, scrolling=False)
                     
-                    # End search result card
-                    st.markdown("</div>", unsafe_allow_html=True)
                 except Exception as e:
                     st.warning(f"⚠️ Error displaying result: {e}")
+
+search_results(query, top_k)
 
 # === LOGOUT BUTTON ===
 st.markdown("---")
