@@ -49,38 +49,35 @@ st.markdown("""
         .video-container {
             position: relative;
             width: 100%;
-            padding-bottom: 56.25%; /* 16:9 aspect ratio */
-            height: 0;
-            overflow: hidden;
+            max-width: 720px; /* Larger max width */
+            margin: 1.5rem auto;
+            height: 405px; /* Fixed height for 16:9 ratio at 720px width */
             border-radius: 8px;
-            margin: 1.2rem 0;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
-            max-width: 100%; /* Full width to maximize video size */
-            margin-left: auto;
-            margin-right: auto;
-            min-height: 360px; /* Larger minimum height for better visibility */
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
+        
         .video-container iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
             border: 0;
         }
-        /* Reduce spacing between result items */
+        
+        /* Add space between search results */
+        hr {
+            margin: 1rem 0;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        /* Optimize element spacing */
         .element-container {
             margin-bottom: 0.5rem;
         }
+
         /* Mobile optimizations */
         @media (max-width: 768px) {
             .block-container {
                 padding: 0.5rem;
-                max-width: 100%;
-            }
-            .video-container {
-                margin: 1rem auto;
-                min-height: 240px;
                 max-width: 100%;
             }
             /* Reduce spacing between elements on mobile */
@@ -91,6 +88,11 @@ st.markdown("""
             /* Make text more readable on mobile */
             div.stMarkdown p {
                 font-size: 0.95rem;
+            }
+            /* Adjust video container for mobile */
+            .video-container {
+                height: 250px;
+                margin: 1rem auto;
             }
         }
     </style>
@@ -386,19 +388,26 @@ else:
                         # Get the YouTube embed URL
                         embed_url = get_youtube_embed_url(video_id, timestamp, is_short)
                         
-                        # Create a full-width container for videos that maintains aspect ratio
-                        # This preserves timestamps while ensuring proper display on all devices
-                        components.html(f'''
-                        <div style="width:100%; margin: 1rem 0;">
+                        # Use properly sized responsive video container
+                        if not is_short:
+                            # For regular videos with timestamp
+                            start_time = timestamp_to_seconds(timestamp)
+                            youtube_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1&start={start_time}"
+                        else:
+                            # For shorts, use regular embed without timestamp
+                            youtube_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
+                            
+                        # Use truly responsive container that leverages our CSS
+                        components.html(f"""
                             <div class="video-container">
-                              <iframe 
-                                src="{embed_url}"
-                                allowfullscreen
-                                allow="autoplay; encrypted-media">
-                              </iframe>
+                                <iframe 
+                                    src="{youtube_url}" 
+                                    frameborder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                    allowfullscreen>
+                                </iframe>
                             </div>
-                        </div>
-                        ''', height=None)
+                        """, height=None)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         if is_short:
