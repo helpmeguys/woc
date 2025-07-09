@@ -53,8 +53,12 @@ st.markdown("""
             height: 0;
             overflow: hidden;
             border-radius: 8px;
-            margin-bottom: 1rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 1.2rem 0;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+            max-width: 100%; /* Full width to maximize video size */
+            margin-left: auto;
+            margin-right: auto;
+            min-height: 360px; /* Larger minimum height for better visibility */
         }
         .video-container iframe {
             position: absolute;
@@ -75,7 +79,18 @@ st.markdown("""
                 max-width: 100%;
             }
             .video-container {
-                margin-bottom: 0.75rem;
+                margin: 1rem auto;
+                min-height: 240px;
+                max-width: 100%;
+            }
+            /* Reduce spacing between elements on mobile */
+            p, div.stMarkdown {
+                margin-bottom: 0.5rem;
+                line-height: 1.4;
+            }
+            /* Make text more readable on mobile */
+            div.stMarkdown p {
+                font-size: 0.95rem;
             }
         }
     </style>
@@ -371,15 +386,17 @@ else:
                         # Get the YouTube embed URL
                         embed_url = get_youtube_embed_url(video_id, timestamp, is_short)
                         
-                        # Use responsive container that leverages our global CSS
-                        # This approach preserves timestamps while ensuring proper display on all devices
+                        # Create a full-width container for videos that maintains aspect ratio
+                        # This preserves timestamps while ensuring proper display on all devices
                         components.html(f'''
-                        <div class="video-container">
-                          <iframe 
-                            src="{embed_url}"
-                            allowfullscreen
-                            allow="autoplay; encrypted-media">
-                          </iframe>
+                        <div style="width:100%; margin: 1rem 0;">
+                            <div class="video-container">
+                              <iframe 
+                                src="{embed_url}"
+                                allowfullscreen
+                                allow="autoplay; encrypted-media">
+                              </iframe>
+                            </div>
                         </div>
                         ''', height=None)
                     
