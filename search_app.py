@@ -699,75 +699,109 @@ def search_and_display_results(query, top_k=5):
                     # Extract video ID for embedding
                     video_id = extract_youtube_video_id(url)
                     
-                    # Create a card-like container for each result
-                    with st.container():
-                        col1, col2 = st.columns([3, 1])
-                        with col1:
-                            # Display video title with icon
-                            if title.lower().strip() not in ["untitled", "untitled video", ""]:
-                                if is_short:
-                                    st.markdown(f"### 📱 Shorts: {title}")
-                                else:
-                                    st.markdown(f"### 📖 {title}")
-                            else:
-                                if is_short:
-                                    st.markdown("### 📱 YouTube Short")
-                                else:
-                                    st.markdown("### 📖 Video")
-                        
-                        with col2:
-                            # Display similarity score
-                            st.markdown(f"<div style='text-align: right; padding: 5px; background-color: rgba(0,0,0,0.05); border-radius: 15px; margin-top: 10px;'><span style='color: {PRIMARY_COLOR}; font-weight: 500;'>Score: {score:.3f}</span></div>", unsafe_allow_html=True)
-                        
-                        # Display segment information (on its own line)
-                        if segment and segment.lower().strip() not in ["", "untitled"]:
-                            st.markdown(f"**Segment:** {segment}")
-                        
-                        # Display timestamp (on its own line) - only for non-shorts
-                        if timestamp and not is_short:
-                            st.markdown(f"**⏰ Timestamp:** {timestamp}")
-                        
-                        # Embed YouTube video using st.video if we have a valid video ID
-                        if video_id:
-                            # Convert timestamp to seconds for embed URL
-                            start_seconds = 0
-                            if timestamp and not is_short:
-                                start_seconds = timestamp_to_seconds(timestamp)
+                    # Prepare title display
+                    if title.lower().strip() not in ["untitled", "untitled video", ""]:
+                        if is_short:
+                            title_display = f"Shorts: {title}"
+                        else:
+                            title_display = title
+                    else:
+                        if is_short:
+                            title_display = "YouTube Short"
+                        else:
+                            title_display = "Video"
+                    
+                    # Convert timestamp to seconds for embed URL
+                    start_seconds = 0
+                    if timestamp and not is_short:
+                        start_seconds = timestamp_to_seconds(timestamp)
                             
-                            # Create YouTube URL with timestamp for st.video
-                            if is_short:
-                                youtube_url = f"https://www.youtube.com/shorts/{video_id}"
-                            else:
-                                youtube_url = f"https://youtube.com/watch?v={video_id}&t={start_seconds}s"
+                    # Create embed URL with appropriate parameters
+                    if is_short:
+                        embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
+                    else:
+                        embed_url = f"https://www.youtube.com/embed/{video_id}?start={start_seconds}&rel=0&modestbranding=1"
+                    
+                    # Generate separate button HTML to avoid f-string nesting issues
+                    copy_button_html = f"""
+                    <button onclick="
+                        navigator.clipboard.writeText('{url}');
+                        this.innerHTML = '<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\'></path><rect x=\'8\' y=\'2\' width=\'8\' height=\'4\' rx=\'1\' ry=\'1\'></rect></svg> <span style=\'margin-left:4px;\'>Copied!</span>';
+                        setTimeout(() => {{
+                            this.innerHTML = '<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\'></path><rect x=\'8\' y=\'2\' width=\'8\' height=\'4\' rx=\'1\' ry=\'1\'></rect></svg> <span style=\'margin-left:4px;\'>{"Copy Shorts link" if is_short else "Copy link"}</span>';
+                        }}, 2000);
+                        " 
+                        style="cursor: pointer; padding: 8px 16px; font-size: 0.9rem; border: 1px solid rgba(0,0,0,0.15); 
+                        border-radius: {BORDER_RADIUS}; background: #ffffff; box-shadow: {BOX_SHADOW};">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                        </svg>
+                        <span style="margin-left: 4px;">{"Copy Shorts link" if is_short else "Copy link"}</span>
+                    </button>
+                    """
+                    
+                    # Generate the HTML for the entire result card with timestamp on separate line
+                    result_html = f"""
+                    <div style="background-color: {CARD_BG_COLOR}; border-radius: {BORDER_RADIUS}; padding: 16px; margin-bottom: 24px; box-shadow: {BOX_SHADOW};">
+                        <!-- Video Title -->
+                        <div style="margin-bottom: 12px;">
+                            <h3 style="margin-bottom: 8px; font-weight: 600; color: {HEADER_COLOR};">
+                                {"📱" if is_short else "📖"} {title_display}
+                            </h3>
+                        </div>
+                        
+                        <!-- Segment info (on its own line) -->
+                        {('<p style="margin: 8px 0;"><strong>Segment:</strong> ' + segment + '</p>') if segment and segment.lower().strip() not in ["", "untitled"] else ''}
+                        
+                        <!-- Timestamp (on its own line) -->
+                        {('<p style="margin: 8px 0; color: ' + PRIMARY_COLOR + ';"><strong>⏰ Timestamp:</strong> ' + timestamp + '</p>') if timestamp and not is_short else ''}
+                        
+                        <!-- YouTube video embed with proper aspect ratio -->
+                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: {BORDER_RADIUS}; margin: 16px 0;">
+                            <iframe 
+                                src="{embed_url}" 
+                                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+                                allowfullscreen 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                            </iframe>
+                        </div>
+                        
+                        <!-- Q&A content -->
+                        <div style="margin: 16px 0; background-color: rgba(0,0,0,0.02); padding: 12px; border-radius: {BORDER_RADIUS};">
+                            <p style="margin-bottom: 8px;"><strong>Q:</strong> {question}</p>
+                            <p><strong>A:</strong> {answer}</p>
+                        </div>
+                        
+                        <!-- Button container -->
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; align-items: center;">
+                            <!-- Copy link button (generated separately to avoid f-string nesting) -->
+                            {copy_button_html}
                             
-                            # Use native Streamlit video embedding
-                            st.video(youtube_url)
-                        
-                        # Display Q&A content
-                        st.markdown("---")
-                        st.markdown(f"**Q:** {question}")
-                        st.markdown(f"**A:** {answer}")
-                        
-                        # Create button row
-                        col1, col2, col3 = st.columns([1.5, 1.5, 1])
-                        
-                        # Copy link button
-                        with col1:
-                            if st.button(f"📋 {"Copy Shorts link" if is_short else "Copy link"}", key=f"copy_{idx}"):
-                                # Use JavaScript to copy to clipboard via HTML component
-                                copy_js = f"""
-                                <script>navigator.clipboard.writeText("{url}");</script>
-                                <div style="padding: 5px; background: #e6f7e6; border-radius: 5px; color: #2e7d32;">Link copied!</div>
-                                """
-                                st.components.v1.html(copy_js, height=30)
-                        
-                        # Open in YouTube button
-                        with col2:
-                            st.markdown(f"<a href='{url}' target='_blank' style='display: inline-block; padding: 0.5em 1em; color: #FF0000; text-decoration: none; border: 1px solid #FF0000; border-radius: 4px;'>🔗 Open in YouTube</a>", unsafe_allow_html=True)
-                        
-                        # Add spacing between results
-                        st.markdown("<hr style='margin: 30px 0;'>", unsafe_allow_html=True)
-                
+                            <!-- Open in YouTube button -->
+                            <a href="{url}" target="_blank" 
+                                style="display: inline-block; padding: 8px 16px; font-size: 0.9rem; border: 1px solid rgba(255,0,0,0.7); 
+                                border-radius: {BORDER_RADIUS}; background: #ffffff; color: #FF0000; text-decoration: none; box-shadow: {BOX_SHADOW};">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#FF0000">
+                                    <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                                </svg>
+                                <span style="margin-left: 4px;">Open in YouTube</span>
+                            </a>
+                            
+                            <!-- Similarity score -->
+                            <div style="margin-left: auto;">
+                                <span style="background-color: rgba({hex_to_rgb(PRIMARY_COLOR)[0]}, {hex_to_rgb(PRIMARY_COLOR)[1]}, {hex_to_rgb(PRIMARY_COLOR)[2]}, 0.1); padding: 4px 8px; border-radius: 20px; font-size: 0.8rem;">
+                                    <span style="color: {PRIMARY_COLOR}; font-weight: 500;">Similarity: {score:.3f}</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    """
+                    
+                    # Render the result using components.html
+                    # Use a taller height for proper iframe display
+                    components.html(result_html, height=650, scrolling=True)
+                    
                 except Exception as e:
                     st.warning(f"⚠️ Error displaying result {idx}: {str(e)}")
                     st.exception(e)
@@ -776,7 +810,7 @@ def search_and_display_results(query, top_k=5):
             st.error(f"Error during search: {str(e)}")
             st.exception(e)
 
-# Call the new search and display function with the query
+# Call the search and display function with the query
 if query:
     search_and_display_results(query, top_k)
 
