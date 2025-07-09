@@ -36,62 +36,6 @@ st.markdown("""
         .stActionButtonIcon, div[class*="floating"], [data-testid="collapsedControl"] {
             display: none !important;
         }
-        /* Remove the highlight area at the top */
-        header {
-            visibility: hidden;
-        }
-        /* Reduce top padding to minimize space */
-        .block-container {
-            padding-top: 1rem;
-            max-width: 95%;
-        }
-        /* Make videos much larger and more prominent */
-        .video-container {
-            width: 100%; 
-            margin: 1rem auto;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            line-height: 0; /* Remove extra spacing */
-        }
-        
-        .stVideo, .stVideo > div, .stVideo > video {
-            margin: 0 !important;
-            padding: 0 !important;
-            border-radius: 8px;
-        }
-        
-        /* Add space between search results */
-        hr {
-            margin: 1rem 0;
-            border-top: 1px solid #e0e0e0;
-        }
-        
-        /* Optimize element spacing */
-        .element-container {
-            margin-bottom: 0.5rem;
-        }
-
-        /* Mobile optimizations */
-        @media (max-width: 768px) {
-            .block-container {
-                padding: 0.5rem;
-                max-width: 100%;
-            }
-            /* Reduce spacing between elements on mobile */
-            p, div.stMarkdown {
-                margin-bottom: 0.5rem;
-                line-height: 1.4;
-            }
-            /* Make text more readable on mobile */
-            div.stMarkdown p {
-                font-size: 0.95rem;
-            }
-            /* Mobile video adjustments */
-            .video-container {
-                margin: 0.5rem auto;
-            }
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -225,27 +169,42 @@ def get_youtube_thumbnail_url(video_id):
     # Use the maxresdefault image when available (highest quality)
     return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
     
-def get_youtube_embed_url(video_id, timestamp=None, is_short=False):
-    """Generate the URL for YouTube embed with optional timestamp
+def get_youtube_embed_html(video_id, timestamp=None, is_short=False):
+    """Generate HTML to embed a YouTube video with optional timestamp
     
     For YouTube Shorts, we ignore the timestamp to ensure the entire short plays.
     """
     if not video_id:
         return ""
         
-    # Convert timestamp to seconds
+    # Convert timestamp format (e.g., "1:23:45" or "1:23") to seconds for YouTube embed
     start_seconds = 0
     if timestamp and not is_short:  # Skip timestamp for shorts
-        start_seconds = timestamp_to_seconds(timestamp)
-        
-    # Create YouTube embed URL with modest branding
+        parts = timestamp.split(":")
+        if len(parts) == 3:  # hours:minutes:seconds
+            start_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        elif len(parts) == 2:  # minutes:seconds
+            start_seconds = int(parts[0]) * 60 + int(parts[1])
+        elif len(parts) == 1 and parts[0].isdigit():  # seconds
+            start_seconds = int(parts[0])
+    
+    # Create an embedded YouTube player with autoplay disabled and modest branding
     embed_url = f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
     
-    # Add timestamp for regular videos
+    # Only add start time for non-shorts videos that have a timestamp
     if not is_short and start_seconds > 0:
         embed_url += f"&start={start_seconds}"
-        
-    return embed_url
+    
+    return f"""
+    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px;">
+        <iframe 
+            src="{embed_url}" 
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+            allowfullscreen 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+        </iframe>
+    </div>
+    """
 
 def search_faiss(query_vector, top_k):
     # Request more results than needed to account for potential duplicates
@@ -382,26 +341,8 @@ else:
                     
                     # Display embedded YouTube player if video ID is available
                     if video_id:
-                        # Get the YouTube embed URL
-                        embed_url = get_youtube_embed_url(video_id, timestamp, is_short)
-                        
-                        # Generate full YouTube URL with timestamp if needed
-                        if not is_short:
-                            # For regular videos with timestamp
-                            if timestamp:
-                                start_time = timestamp_to_seconds(timestamp)
-                                youtube_url = f"https://www.youtube.com/watch?v={video_id}&t={start_time}s"
-                            else:
-                                youtube_url = f"https://www.youtube.com/watch?v={video_id}"
-                        else:
-                            # For shorts
-                            youtube_url = f"https://youtube.com/shorts/{video_id}"
-                        
-                        # Use st.video which properly sizes videos to fill the width
-                        with st.container():
-                            st.markdown("<div class='video-container'>", unsafe_allow_html=True)
-                            st.video(youtube_url)
-                            st.markdown("</div>", unsafe_allow_html=True)
+                        embed_html = get_youtube_embed_html(video_id, timestamp, is_short)
+                        components.html(embed_html, height=400)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         if is_short:
@@ -466,3 +407,4 @@ st.markdown(f"📊 **Logins this month:** `{usage.get(current_month, 0)}`")
 st.markdown(f"Last Updated: {LAST_UPDATED}")
 st.markdown("---")
 st.markdown("[💡 Powered by AskClips.com](https://askclips.com)", unsafe_allow_html=True)
+
