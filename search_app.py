@@ -23,6 +23,7 @@ INDEX_FILE = "embeddings.index"
 METADATA_FILE = "metadata.json"
 INDEX_URL = os.environ.get("INDEX_URL")
 META_URL = os.environ.get("META_URL")
+LAST_UPDATED = os.environ.get("LAST_UPDATED")
 ACCESS_LOG_FILE = "access_log.json"
 
 # === PAGE CONFIG ===
@@ -403,5 +404,6 @@ st.markdown("</div>", unsafe_allow_html=True)
 usage = get_monthly_usage()
 current_month = datetime.now().strftime("%Y-%m")
 st.markdown(f"📊 **Logins this month:** `{usage.get(current_month, 0)}`")
+st.set_page_config(f"Last Updated: {LAST_UPDATED}", layout="centered")
 st.markdown("---")
 st.markdown("[💡 Powered by AskClips.com](https://askclips.com)", unsafe_allow_html=True)
