@@ -36,6 +36,15 @@ st.markdown("""
         .stActionButtonIcon, div[class*="floating"], [data-testid="collapsedControl"] {
             display: none !important;
         }
+        /* Remove the highlight area at the top */
+        header {
+            visibility: hidden;
+        }
+        /* Reduce top padding to minimize space */
+        .block-container {
+            padding-top: 1rem;
+            max-width: 95%;
+        }
     </style>
 """, unsafe_allow_html=True)
 
