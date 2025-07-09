@@ -338,9 +338,18 @@ else:
                         # Get the YouTube embed URL
                         embed_url = get_youtube_embed_url(video_id, timestamp, is_short)
                         
-                        # Use st.video with the YouTube URL for better native rendering
-                        # This lets Streamlit handle the responsive sizing automatically
-                        st.video(embed_url)
+                        # Use HTML components for better timestamp control
+                        components.html(f'''
+                        <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; background: #000;">
+                          <iframe 
+                            src="{embed_url}"
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                            frameborder="0"
+                            allow="autoplay; encrypted-media"
+                            allowfullscreen>
+                          </iframe>
+                        </div>
+                        ''', height=None)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         if is_short:
