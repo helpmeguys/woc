@@ -386,4 +386,5 @@ current_month = datetime.now().strftime("%Y-%m")
 st.markdown(f"📊 **Logins this month:** `{usage.get(current_month, 0)}`")
 st.markdown(f"Last Updated: {LAST_UPDATED}")
 st.markdown("---")
-st.markdown("[💡 Powered by AskClips.com](https://askclips.com)", unsafe_allow_html=True)
+st.markdown(f"<span><img src='https://f000.backblazeb2.com/file/megatransfer/vaults/AC_Logo_Small.png' style='height: 1em; width: auto; vertical-align: middle; margin-right: 5px;'><a href='https://askclips.com' style='text-decoration: none; color: inherit;'>Powered by AskClips.com</a></span>", unsafe_allow_html=True)
+
