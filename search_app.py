@@ -81,7 +81,7 @@ def get_monthly_usage():
 
 
 
-# === PASSWORD GATE ===
+# === PASSWORD GATE ====
 if not st.session_state.authenticated:
     st.markdown(f"<h3 style='margin-bottom: 0.5rem;'>🔐 {SITE_TITLE}</h3>", unsafe_allow_html=True)
     st.markdown(f"This tool is available <strong>free to registered users</strong>. Register here: [Click here to register]({REGISTRATION_URL})", unsafe_allow_html=True)
@@ -343,7 +343,7 @@ else:
                     # Display embedded YouTube player if video ID is available
                     if video_id:
                         embed_html = get_youtube_embed_html(video_id, timestamp, is_short)
-                        components.html(embed_html, height=400)
+                        components.html(embed_html, height=0, scrolling=False)
                     
                     if title.lower().strip() not in ["untitled", "untitled video", ""]:
                         if is_short:
