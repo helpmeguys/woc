@@ -33,9 +33,24 @@ st.set_page_config(page_title=f"📖 {SITE_TITLE}", layout="centered")
 # === STYLING ===
 st.markdown("""
     <style>
+        /* Hide Streamlit UI elements */
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
         .stDeployButton, [data-testid="stStatusWidget"], .viewerBadge_container__1QSob,
         .stActionButtonIcon, div[class*="floating"], [data-testid="collapsedControl"] {
             display: none !important;
+        }
+        
+        /* Remove top padding */
+        .stApp {
+            margin-top: -50px;
+            padding-top: 0;
+        }
+        
+        /* Adjust main container spacing */
+        .block-container {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
         }
     </style>
 """, unsafe_allow_html=True)
