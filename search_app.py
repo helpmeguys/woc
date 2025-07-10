@@ -32,6 +32,9 @@ DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 ACCESS_LOG_FILE = DATA_DIR / "access_log.json"
 
+# Customzation
+PROFILE_PICTURE_URL = os.environ.get("PROFILE_PICTURE_URL")
+
 # === PAGE CONFIG ===
 st.set_page_config(page_title=SITE_TITLE, 
                  layout="centered",
@@ -118,9 +121,52 @@ def get_monthly_usage():
 
 # === PASSWORD GATE ===
 if not st.session_state.authenticated:
-    st.markdown(f"<h3 style='margin-bottom: 0.5rem;'>🔐 {SITE_TITLE}</h3>", unsafe_allow_html=True)
-    st.markdown(f"This tool is available <strong>free to registered users</strong>. Register here: [Click here to register]({REGISTRATION_URL})", unsafe_allow_html=True)
+    # Create a container with top margin
+    st.markdown("""
+        <style>
+            .login-container {
+                margin-top: 100px;
+                max-width: 600px;
+                margin-left: auto;
+                margin-right: auto;
+                text-align: center;
+                padding: 2rem;
+            }
+            .profile-pic {
+                width: 100px;
+                height: 100px;
+                border-radius: 50%;
+                margin: 0 auto 1rem;
+                display: block;
+                border: 3px solid #f0f2f6;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Main container with centered content
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    
+    # YouTube channel profile picture (replace with actual channel's profile picture URL)
+    st.markdown(
+        '<img src="{PROFILE_PICTURE_URL}" ' 
+        'class="profile-pic" alt="YouTube Channel Profile Picture">', 
+        unsafe_allow_html=True
+    )
+    
+    # Title and description
+    st.markdown(f"<h2 style='margin-bottom: 1rem;'>🔐 {SITE_TITLE}</h2>", unsafe_allow_html=True)
+    st.markdown(
+        f"<p style='margin-bottom: 1.5rem; color: #666;'>"
+        f"This tool is available <strong>free to registered users</strong>. "
+        f"<a href='{REGISTRATION_URL}' target='_blank'>Register here</a>"
+        f"</p>", 
+        unsafe_allow_html=True
+    )
+    
+    # Password input
     password = st.text_input("Enter your password:", type="password")
+    
     if password == PASSWORD:
         st.session_state.authenticated = True
         log_access()
@@ -128,10 +174,13 @@ if not st.session_state.authenticated:
         time.sleep(2)
         st.rerun()
     elif password:
-        st.error("Incorrect password.")
+        st.error("Incorrect password. Please try again.")
         st.stop()
     else:
         st.stop()
+        
+    # Close container
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # === OPENAI SETUP ===
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
