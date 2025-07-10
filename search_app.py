@@ -43,7 +43,7 @@ st.markdown("""
         
         /* Remove top padding */
         .stApp {
-            margin-top: -50px;
+            margin-top: -25px;
             padding-top: 0;
         }
         
