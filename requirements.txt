@@ -5,3 +5,4 @@ numpy
 gtts
 requests
 streamlit-player
+pathlib
