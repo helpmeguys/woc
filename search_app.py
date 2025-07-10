@@ -101,9 +101,10 @@ if not st.session_state.authenticated:
 # === OPENAI SETUP ===
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# === DOWNLOAD + LOAD INDEX ===
-download_if_missing(INDEX_FILE, INDEX_URL)
-download_if_missing(METADATA_FILE, META_URL)
+# === DOWNLOAD AFTER AUTHENTICATION ===
+if st.session_state.authenticated:
+    download_if_missing(INDEX_FILE, INDEX_URL)
+    download_if_missing(METADATA_FILE, META_URL)
 
 @st.cache_resource
 def load_faiss_index():
@@ -407,4 +408,3 @@ st.markdown(f"📊 **Logins this month:** `{usage.get(current_month, 0)}`")
 st.markdown(f"Last Updated: {LAST_UPDATED}")
 st.markdown("---")
 st.markdown("[💡 Powered by AskClips.com](https://askclips.com)", unsafe_allow_html=True)
-
