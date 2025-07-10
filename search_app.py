@@ -32,8 +32,8 @@ DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 ACCESS_LOG_FILE = DATA_DIR / "access_log.json"
 
-# Customzation
-PROFILE_PICTURE_URL = os.environ.get("PROFILE_PICTURE_URL")
+# Customization
+PROFILE_PICTURE_URL = os.environ.get("PROFILE_PICTURE_URL", "").strip()
 
 # === PAGE CONFIG ===
 st.set_page_config(page_title=SITE_TITLE, 
@@ -147,12 +147,22 @@ if not st.session_state.authenticated:
     # Main container with centered content
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     
-    # YouTube channel profile picture
-    st.markdown(
-        f'<img src="{PROFILE_PICTURE_URL}" ' 
-        'class="profile-pic" alt="YouTube Channel Profile Picture">', 
-        unsafe_allow_html=True
-    )
+    # YouTube channel profile picture with validation
+    if PROFILE_PICTURE_URL and PROFILE_PICTURE_URL.startswith(('http://', 'https://')):
+        st.markdown(
+            f'<img src="{PROFILE_PICTURE_URL}" ' 
+            'class="profile-pic" alt="YouTube Channel Profile" ' 
+            'onerror="this.style.display=\'none\';">', 
+            unsafe_allow_html=True
+        )
+    else:
+        # Fallback to a placeholder if URL is invalid
+        st.markdown(
+            '<div class="profile-pic" style="background-color: #f0f2f6; display: flex; ' 
+            'align-items: center; justify-content: center; color: #666;">' 
+            '👤</div>', 
+            unsafe_allow_html=True
+        )
     
     # Title and description
     st.markdown(f"<h2 style='margin-bottom: 1rem;'>🔐 {SITE_TITLE}</h2>", unsafe_allow_html=True)
