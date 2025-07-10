@@ -341,7 +341,7 @@ def search_faiss(query_vector, top_k):
     return filtered_results
 
 # === MAIN UI ===
-st.markdown(f"<div style='display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;'><img src='https://f000.backblazeb2.com/file/megatransfer/vaults/AC_Logo_Small.png' style='height: 24px; width: auto;'><h3 style='margin: 0;'>{SITE_TITLE}</h3></div>", unsafe_allow_html=True)
+st.markdown(f"<div style='display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;'><img src='{PROFILE_PICTURE_URL}' style='height: 24px; width: auto;'><h3 style='margin: 0;'>{SITE_TITLE}</h3></div>", unsafe_allow_html=True)
 query = st.text_input("Type a question or comment to find helpful, accurate responses.")
 
 if not query:
