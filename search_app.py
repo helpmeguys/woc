@@ -28,7 +28,9 @@ LAST_UPDATED = os.environ.get("LAST_UPDATED")
 ACCESS_LOG_FILE = "access_log.json"
 
 # === PAGE CONFIG ===
-st.set_page_config(page_title=f"<img src='https://f000.backblazeb2.com/file/megatransfer/vaults/AC_Logo_Small.png' style='height: 1em; width: auto; vertical-align: middle;'> {SITE_TITLE}", layout="centered")
+st.set_page_config(page_title=SITE_TITLE, 
+                 layout="centered",
+                 page_icon="https://f000.backblazeb2.com/file/megatransfer/vaults/AC_Logo_Small.png")
 
 # === STYLING ===
 st.markdown("""
