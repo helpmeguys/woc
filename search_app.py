@@ -15,6 +15,7 @@ import requests
 import urllib.request
 import streamlit.components.v1 as components
 import streamlit_player as st_player
+from pathlib import Path
 
 # === CONFIGURATION ===
 SITE_TITLE = os.environ.get("SITE_TITLE")
@@ -25,7 +26,11 @@ METADATA_FILE = "metadata.json"
 INDEX_URL = os.environ.get("INDEX_URL")
 META_URL = os.environ.get("META_URL")
 LAST_UPDATED = os.environ.get("LAST_UPDATED")
-ACCESS_LOG_FILE = "access_log.json"
+
+# Ensure data directory exists
+DATA_DIR = Path("data")
+DATA_DIR.mkdir(exist_ok=True)
+ACCESS_LOG_FILE = DATA_DIR / "access_log.json"
 
 # === PAGE CONFIG ===
 st.set_page_config(page_title=SITE_TITLE, 
@@ -80,20 +85,32 @@ if "authenticated" not in st.session_state:
 # === LOGIN TRACKING ===
 def log_access():
     now = datetime.now().strftime("%Y-%m")
+    data = []
     try:
-        with open(ACCESS_LOG_FILE, "r") as f:
-            data = json.load(f)
-    except FileNotFoundError:
+        if ACCESS_LOG_FILE.exists():
+            with open(ACCESS_LOG_FILE, "r") as f:
+                data = json.load(f)
+                if not isinstance(data, list):  # Handle case where file exists but is not a list
+                    data = []
+    except (json.JSONDecodeError, FileNotFoundError):
         data = []
+    
     data.append(now)
+    
+    # Ensure the directory exists before writing
+    ACCESS_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(ACCESS_LOG_FILE, "w") as f:
         json.dump(data, f)
 
 def get_monthly_usage():
+    if not ACCESS_LOG_FILE.exists():
+        return {}
     try:
         with open(ACCESS_LOG_FILE, "r") as f:
             data = json.load(f)
-    except FileNotFoundError:
+            if not isinstance(data, list):  # Handle case where file exists but is not a list
+                return {}
+    except (json.JSONDecodeError, FileNotFoundError):
         return {}
     return Counter(data)
 
@@ -387,4 +404,3 @@ st.markdown(f"📊 **Logins this month:** `{usage.get(current_month, 0)}`")
 st.markdown(f"Last Updated: {LAST_UPDATED}")
 st.markdown("---")
 st.markdown(f"<span><img src='https://f000.backblazeb2.com/file/megatransfer/vaults/AC_Logo_Small.png' style='height: 1em; width: auto; vertical-align: middle; margin-right: 5px;'><a href='https://askclips.com' style='text-decoration: none; color: inherit;'>Powered by AskClips.com</a></span>", unsafe_allow_html=True)
-
