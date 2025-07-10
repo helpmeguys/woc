@@ -352,24 +352,16 @@ else:
                     st.markdown(f"**Q:** {question}")
                     st.markdown(f"**A:** {answer}")
 
-                    col1, col2 = st.columns([1, 1])
-                    with col1:
-                        if is_short:
-                            button_text = "📋 Copy Shorts link"
-                        else:
-                            button_text = "📋 Copy link"
-                            
-                        components.html(f"""
-                        <div>
-                            <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='{button_text}', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">{button_text}</button>
-                        </div>
-                        """, height=40)
-                    with col2:
-                        components.html(f"""
-                        <div>
-                            <a href="{url}" target="_blank" style="display:inline-block; padding:4px 10px; font-size:0.85rem; border:1px solid #FF0000; border-radius:5px; background:#f9f9f9; color:#FF0000; text-decoration:none;">📺 Open in YouTube</a>
-                        </div>
-                        """, height=40)
+                    if is_short:
+                        button_text = "📋 Copy Shorts link"
+                    else:
+                        button_text = "📋 Copy link"
+                        
+                    components.html(f"""
+                    <div>
+                        <button onclick="navigator.clipboard.writeText('{url}'); this.innerText='✅ Copied!'; setTimeout(() => this.innerText='{button_text}', 2000);" style="cursor:pointer; padding:4px 10px; font-size:0.85rem; border:1px solid #ccc; border-radius:5px; background:#f9f9f9;">{button_text}</button>
+                    </div>
+                    """, height=40)
 
                     st.markdown(
                         f" **<span style='color:green;'>Semantic similarity: {sim:.3f}</span>**",
