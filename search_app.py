@@ -147,9 +147,9 @@ if not st.session_state.authenticated:
     # Main container with centered content
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     
-    # YouTube channel profile picture (replace with actual channel's profile picture URL)
+    # YouTube channel profile picture
     st.markdown(
-        '<img src="{PROFILE_PICTURE_URL}" ' 
+        f'<img src="{PROFILE_PICTURE_URL}" ' 
         'class="profile-pic" alt="YouTube Channel Profile Picture">', 
         unsafe_allow_html=True
     )
