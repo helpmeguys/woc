@@ -28,9 +28,10 @@ META_URL = os.environ.get("META_URL")
 LAST_UPDATED = os.environ.get("LAST_UPDATED")
 
 # Ensure data directory exists
-DATA_DIR = Path("data")
-DATA_DIR.mkdir(exist_ok=True)
+DATA_DIR = Path("/data" if os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") else "data")
+DATA_DIR.mkdir(exist_ok=True, parents=True)
 ACCESS_LOG_FILE = DATA_DIR / "access_log.json"
+print(f"Using access log file: {ACCESS_LOG_FILE}")  # Debug log
 
 # Customization
 PROFILE_PICTURE_URL = os.environ.get("PROFILE_PICTURE_URL", "").strip()
@@ -90,33 +91,46 @@ def log_access():
     now = datetime.now().strftime("%Y-%m")
     data = []
     try:
+        # Try to read existing data
         if ACCESS_LOG_FILE.exists():
             with open(ACCESS_LOG_FILE, "r") as f:
-                data = json.load(f)
-                if not isinstance(data, list):  # Handle case where file exists but is not a list
+                try:
+                    data = json.load(f)
+                    if not isinstance(data, list):  # Ensure data is a list
+                        data = []
+                except json.JSONDecodeError:
                     data = []
-    except (json.JSONDecodeError, FileNotFoundError):
-        data = []
-    
-    data.append(now)
-    
-    # Ensure the directory exists before writing
-    ACCESS_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(ACCESS_LOG_FILE, "w") as f:
-        json.dump(data, f)
+        
+        # Append new entry
+        data.append(now)
+        
+        # Write back to file
+        with open(ACCESS_LOG_FILE, "w") as f:
+            json.dump(data, f)
+            f.flush()  # Ensure data is written to disk
+            os.fsync(f.fileno())  # Force OS to write to disk
+            
+        print(f"Logged access for {now}. Total entries: {len(data)}")
+        
+    except Exception as e:
+        print(f"Error logging access: {e}")
+        # Don't crash if logging fails
 
 def get_monthly_usage():
-    if not ACCESS_LOG_FILE.exists():
-        return {}
     try:
-        with open(ACCESS_LOG_FILE, "r") as f:
-            data = json.load(f)
-            if not isinstance(data, list):  # Handle case where file exists but is not a list
-                return {}
-    except (json.JSONDecodeError, FileNotFoundError):
+        if ACCESS_LOG_FILE.exists():
+            with open(ACCESS_LOG_FILE, "r") as f:
+                try:
+                    data = json.load(f)
+                    if not isinstance(data, list):  # Ensure data is a list
+                        return {}
+                    return Counter(data)
+                except json.JSONDecodeError:
+                    return {}
         return {}
-    return Counter(data)
-
+    except Exception as e:
+        print(f"Error reading access log: {e}")
+        return {}
 
 
 # === PASSWORD GATE ===
