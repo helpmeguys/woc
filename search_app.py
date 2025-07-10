@@ -336,16 +336,16 @@ else:
                         if is_short:
                             st.markdown(f"📲 **Shorts: {title}**") 
                         else:
-                            st.markdown(f"📖 **{title}**")
+                            st.markdown(f"🎬 **{title}**")
                     else:
                         if is_short:
                             st.markdown(f"📲 **YouTube Short**")
                         else:
-                            st.markdown(f"📖 **Video**")
+                            st.markdown(f"🎬 **Video**")
                         
                     # Display segment title if available
                     if segment and segment.lower().strip() not in ["", "untitled"]:
-                        st.markdown(f"📝 **Segment:** {segment}")
+                        st.markdown(f"🗂️ **Segment:** {segment}")
                     
                     # Only show timestamp for non-Short videos
                     if not is_short:    
@@ -375,7 +375,7 @@ else:
 # === LOGOUT BUTTON ===
 st.markdown("---")
 st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
-if st.button("🚪 Logout"):
+if st.button("🔓 Logout"):
     st.session_state.authenticated = False
     st.rerun()
 st.markdown("</div>", unsafe_allow_html=True)
