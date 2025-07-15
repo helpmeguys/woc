@@ -5,17 +5,13 @@ import json
 import numpy as np
 import faiss
 from openai import OpenAI
-from pathlib import Path
 from datetime import datetime
-from collections import Counter
 
 import time
 import os
 import requests
-import urllib.request
 import streamlit.components.v1 as components
 import streamlit_player as st_player
-from pathlib import Path
 
 # === CONFIGURATION ===
 SITE_TITLE = os.environ.get("SITE_TITLE")
@@ -26,12 +22,6 @@ METADATA_FILE = "metadata.json"
 INDEX_URL = os.environ.get("INDEX_URL")
 META_URL = os.environ.get("META_URL")
 LAST_UPDATED = os.environ.get("LAST_UPDATED")
-
-# Ensure data directory exists
-DATA_DIR = Path("/data" if os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") else "data")
-DATA_DIR.mkdir(exist_ok=True, parents=True)
-ACCESS_LOG_FILE = DATA_DIR / "access_log.json"
-print(f"Using access log file: {ACCESS_LOG_FILE}")  # Debug log
 
 # Customization
 PROFILE_PICTURE_URL = os.environ.get("PROFILE_PICTURE_URL", "").strip()
@@ -85,52 +75,6 @@ def download_if_missing(file_path, url):
 # === SESSION STATE INIT ===
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
-
-# === LOGIN TRACKING ===
-def log_access():
-    now = datetime.now().strftime("%Y-%m")
-    data = []
-    try:
-        # Try to read existing data
-        if ACCESS_LOG_FILE.exists():
-            with open(ACCESS_LOG_FILE, "r") as f:
-                try:
-                    data = json.load(f)
-                    if not isinstance(data, list):  # Ensure data is a list
-                        data = []
-                except json.JSONDecodeError:
-                    data = []
-        
-        # Append new entry
-        data.append(now)
-        
-        # Write back to file
-        with open(ACCESS_LOG_FILE, "w") as f:
-            json.dump(data, f)
-            f.flush()  # Ensure data is written to disk
-            os.fsync(f.fileno())  # Force OS to write to disk
-            
-        print(f"Logged access for {now}. Total entries: {len(data)}")
-        
-    except Exception as e:
-        print(f"Error logging access: {e}")
-        # Don't crash if logging fails
-
-def get_monthly_usage():
-    try:
-        if ACCESS_LOG_FILE.exists():
-            with open(ACCESS_LOG_FILE, "r") as f:
-                try:
-                    data = json.load(f)
-                    if not isinstance(data, list):  # Ensure data is a list
-                        return {}
-                    return Counter(data)
-                except json.JSONDecodeError:
-                    return {}
-        return {}
-    except Exception as e:
-        print(f"Error reading access log: {e}")
-        return {}
 
 
 # === PASSWORD GATE ===
@@ -193,7 +137,6 @@ if not st.session_state.authenticated:
     
     if password == PASSWORD:
         st.session_state.authenticated = True
-        log_access()
         st.success("Access granted! Welcome.")
         time.sleep(2)
         st.rerun()
@@ -471,9 +414,7 @@ if st.button("🔓 Logout"):
 st.markdown("</div>", unsafe_allow_html=True)
 
 # === FOOTER ===
-usage = get_monthly_usage()
-current_month = datetime.now().strftime("%Y-%m")
-st.markdown(f"📊 **Logins this month:** `{usage.get(current_month, 0)}`")
+
 st.markdown(f"Last Updated: {LAST_UPDATED}")
 st.markdown("---")
 st.markdown(f"<span><img src='https://f000.backblazeb2.com/file/megatransfer/vaults/AC_Logo_Small.png' style='height: 1em; width: auto; vertical-align: middle; margin-right: 5px;'><a href='https://askclips.com' style='text-decoration: none; color: inherit;'>Powered by AskClips.com</a></span>", unsafe_allow_html=True)
